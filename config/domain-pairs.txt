@@ -1,0 +1,6 @@
+# Extra search-replace pairs run after the main remote_domain -> local_domain
+# replacement. Useful for multisite subdomains, CDN hosts or secondary domains.
+# Format: <old> <new>   (whitespace separated, one pair per line)
+#
+# cdn.example.com   site.local
+# shop.example.com  shop.site.local

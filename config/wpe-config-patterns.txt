@@ -1,0 +1,19 @@
+# Lines in wp-config.php deleted by the host-cleanup step when the file looks
+# like a WP Engine config (contains WPE_, PWP_ or wpengine markers).
+# One extended regular expression per line. Matching lines are removed.
+DB_HOST_SLAVE
+WPE_
+PWP_
+wpe_
+is_wpe
+WP Engine
+memcached_servers
+'WP_CACHE'
+'DISABLE_WP_CRON'
+'FORCE_SSL_LOGIN'
+'WP_TURN_OFF_ADMIN_BAR'
+'WP_AUTO_UPDATE_CORE'
+'DISALLOW_FILE_MODS'
+'DISALLOW_FILE_EDIT'
+'WP_POST_REVISIONS'
+umask\(0002\)

@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+printf 'pv %s\n' "$*" >> "${STUB_LOG:-/dev/null}"
+cat

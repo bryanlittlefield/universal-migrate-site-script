@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# Fake ssh: logs the call, fakes remote command output, emulates -L tunnels.
+printf 'ssh %s\n' "$*" >> "${STUB_LOG:-/dev/null}"
+args=" $* "
+if [[ $args == *" -O exit "* ]]; then
+  if [[ -f ${STUB_STATE:-/nonexistent}/tunnel.pid ]]; then
+    kill "$(cat "$STUB_STATE/tunnel.pid")" 2>/dev/null
+    rm -f "$STUB_STATE/tunnel.pid"
+  fi
+  exit 0
+fi
+if [[ $args == *" -L "* ]]; then
+  port=$(printf '%s' "$args" | sed -E 's/.* -L 127\.0\.0\.1:([0-9]+):.*/\1/')
+  python3 -c "import socket,time
+s=socket.socket(); s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1); s.bind(('127.0.0.1', $port)); s.listen(5); time.sleep(120)" >/dev/null 2>&1 </dev/null &
+  echo $! > "${STUB_STATE:-/tmp}/tunnel.pid"
+  exit 0
+fi
+# ssh_run_secret pipes a secret on stdin; drain it unless -n was given.
+[[ $args == *" -n "* ]] || cat >/dev/null
+cmd="${!#}"
+case "$cmd" in
+  *"mysqldump --version"*) echo "mysqldump  Ver 10.19 Distrib 10.6.12-MariaDB, for debian-linux-gnu (x86_64)" ;;
+  *"mysql --version"*) echo "mysql  Ver 15.1 Distrib 10.6.12-MariaDB, for debian-linux-gnu (x86_64) using  EditLine wrapper" ;;
+  *"command -v gzip"*) exit 0 ;;
+  *"SHOW TABLES"*) printf 'wp_options\nwp_posts\nwp_users\nwp_actionscheduler_actions\nwp_wfhits\n' ;;
+  *"SELECT 1"*) echo 1 ;;
+  *"test -d"*|*"test -f"*) exit "${STUB_SSH_TEST_EXIT:-0}" ;;
+  *"echo ok"*) echo ok ;;
+  *"du -sk"*) echo "2048" ;;
+  *mysqldump*)
+    sql=$(cat "${STUB_FIXTURES}/dump.sql")
+    if [[ $cmd == *"| gzip -c"* ]]; then printf '%s\n' "$sql" | gzip -c; else printf '%s\n' "$sql"; fi
+    ;;
+  *) exit 0 ;;
+esac
+exit 0

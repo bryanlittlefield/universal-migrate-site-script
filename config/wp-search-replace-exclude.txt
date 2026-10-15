@@ -1,0 +1,20 @@
+# Tables skipped by `wp search-replace` when rewriting the domain.
+# Wildcards are passed straight to WP-CLI (--skip-tables).
+*_links
+*_commentmeta
+*_comments
+*_usermeta
+*_users
+*_woocommerce_*
+*_wc_*
+*_wf*
+*_yoast*
+*_logs
+*_wsal*
+*_actionscheduler_*
+*_pmx*
+*_easywpsmtp_debug_*
+*_gf_*
+*_mailpoet_statistics*
+*_backup*
+*_backuppup*

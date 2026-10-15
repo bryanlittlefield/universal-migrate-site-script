@@ -1,0 +1,5 @@
+# Follow `source` statements so variables defined in lib/env.sh are known
+# when linting the steps. Lint with: shellcheck -x migrate.sh
+external-sources=true
+source-path=SCRIPTDIR
+shell=bash

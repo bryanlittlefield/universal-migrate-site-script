@@ -1,0 +1,22 @@
+# Must-use plugins removed from wp-content/mu-plugins/ by the host-cleanup step.
+# Paths are relative to wp-content/mu-plugins/. Missing entries are ignored.
+
+# WP Engine
+wpengine-common
+mu-plugin.php
+wpe-cache-plugin
+wpe-cache-plugin.php
+wpe-elasticpress-autosuggest-logger
+wpe-elasticpress-autosuggest-logger.php
+wpe-wp-sign-on-plugin
+wpe-wp-sign-on-plugin.php
+wpengine-security-auditor.php
+force-strong-passwords
+slt-force-strong-passwords.php
+stop-long-comments.php
+
+# Other hosts (uncomment as needed)
+# kinsta-mu-plugins
+# kinsta-mu-plugins.php
+# pantheon-mu-plugin
+# wpcomsh

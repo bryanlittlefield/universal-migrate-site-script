@@ -1,0 +1,62 @@
+# Files and directories NOT copied from the remote server.
+# Syntax: rsync filter rules (see `man rsync`, FILTER RULES).
+#   - A leading "/" anchors the pattern to the web root.
+#   - A trailing "/" matches directories only.
+#   - Blank lines and lines starting with "#" are ignored.
+
+# Archives, dumps and logs
+*.log
+*.sql
+*.sql.gz
+*.sqlite
+*.sqlite3
+*.7z
+*.dmg
+*.gz
+*.iso
+*.jar
+*.rar
+*.tar
+*.zip
+
+# Editor / OS junk
+*.swp
+*.swo
+*.tmproj
+*.tmproject
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+.modgit/
+.devcontainer/
+
+# WordPress caches and backup plugin output
+/wp-content/cache/
+/wp-content/wfcache/
+/wp-content/wflogs/
+/wp-content/et-cache/
+/wp-content/litespeed/
+/wp-content/mysql-dumps/
+/wp-content/updraft/
+/wp-content/ai1wm-backups/
+/wp-content/backups-dup-pro/
+/wp-content/backups-dup-lite/
+/wp-content/uploads/wp-clone/
+
+# Host-specific
+/iworx-backup/
+/_wpeprivate/
+
+# Laravel
+/storage/logs/
+/storage/framework/cache/data/
+/storage/framework/sessions/
+/storage/framework/views/
+
+# Uncomment to skip build dependencies (rebuild locally instead)
+# node_modules/
+# vendor/

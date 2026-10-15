@@ -1,0 +1,14 @@
+# Tables whose DATA is not exported. Their structure is still created locally
+# so the application keeps working — they just arrive empty.
+# One table per line. Shell-style wildcards (* and ?) are expanded against the
+# remote table list. Blank lines and "#" comments are ignored.
+#
+# Examples (uncomment to use):
+# *_actionscheduler_actions
+# *_actionscheduler_logs
+# *_wfhits
+# *_wflogs
+# *_wsal_*
+# *_woocommerce_sessions
+# *_easywpsmtp_debug_*
+# *_mailpoet_statistics*

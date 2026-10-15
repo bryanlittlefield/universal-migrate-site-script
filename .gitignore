@@ -1,0 +1,21 @@
+# Local configuration (contains credentials) — never commit
+.env
+.env.*
+!.env.example
+
+# Run artefacts
+logs/*
+!logs/.gitkeep
+dumps/*
+!dumps/.gitkeep
+*.sql
+*.sql.gz
+*.log
+
+# OS / editor junk
+.DS_Store
+Thumbs.db
+*.swp
+*~
+.vscode/
+.idea/

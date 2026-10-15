@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+printf 'wp %s\n' "$*" >> "${STUB_LOG:-/dev/null}"
+args=" $* "
+case "$args" in
+  *" core is-installed --network "*) exit "${STUB_WP_MULTISITE_EXIT:-1}" ;;
+  *" core version "*) echo "6.6.2" ;;
+  *" option get home "*|*" option get siteurl "*) echo "http://${STUB_WP_HOME_DOMAIN:-site.local}" ;;
+  *" config get DOMAIN_CURRENT_SITE "*) echo "${STUB_DOMAIN_CURRENT_SITE:-old.example.com}" ;;
+  *" plugin is-installed "*)
+    p=${args##* plugin is-installed }; p=${p%% *}
+    [[ ",${STUB_WP_INSTALLED_PLUGINS:-}," == *",${p},"* ]] && exit 0
+    exit 1 ;;
+  *" cli has-command "*) exit 1 ;;
+  *" user get "*) exit 1 ;;
+  *" db check "*) echo ok ;;
+esac
+exit 0

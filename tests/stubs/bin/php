@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+printf 'php %s\n' "$*" >> "${STUB_LOG:-/dev/null}"
+for a in "$@"; do [[ $a == --version ]] && echo "PHP 8.3.0 (cli)"; done
+exit 0

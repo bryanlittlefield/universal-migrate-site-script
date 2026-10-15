@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+printf 'unzip %s\n' "$*" >> "${STUB_LOG:-/dev/null}"
+dest=""; prev=""
+for a in "$@"; do [[ $prev == -d ]] && dest=$a; prev=$a; done
+if [[ -n $dest ]]; then
+  mkdir -p "$dest/kinsta-mu-plugins"
+  : > "$dest/kinsta-mu-plugins.php"
+fi
+exit 0

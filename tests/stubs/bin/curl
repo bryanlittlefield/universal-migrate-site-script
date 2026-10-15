@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+printf 'curl %s\n' "$*" >> "${STUB_LOG:-/dev/null}"
+out=""; prev=""; w=0
+for a in "$@"; do
+  [[ $prev == -o ]] && out=$a
+  [[ $a == -w ]] && w=1
+  prev=$a
+done
+[[ -n $out && $out != /dev/null ]] && : > "$out"
+((w)) && printf '%s' "${STUB_HTTP_CODE:-200}"
+exit "${STUB_CURL_EXIT:-0}"

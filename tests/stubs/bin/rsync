@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+printf 'rsync %s\n' "$*" >> "${STUB_LOG:-/dev/null}"
+for a in "$@"; do
+  [[ $a == --info=help ]] && exit 0
+  [[ $a == --log-file=* ]] && printf 'fake rsync log\n' >> "${a#--log-file=}"
+done
+printf 'Number of files: 12\nTotal transferred file size: 1.2M bytes\n'
+exit "${STUB_RSYNC_EXIT:-0}"

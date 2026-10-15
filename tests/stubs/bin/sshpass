@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+printf 'sshpass %s\n' "$*" >> "${STUB_LOG:-/dev/null}"
+[[ ${1:-} == -e ]] && shift
+exec "$@"

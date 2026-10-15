@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Fake local mysqldump (used for the local backup and the tunnel export).
+printf 'mysqldump %s\n' "$*" >> "${STUB_LOG:-/dev/null}"
+for a in "$@"; do
+  [[ $a == --version ]] && { echo "mysqldump  Ver 8.0.36 for Linux on x86_64 (MySQL Community Server - GPL)"; exit 0; }
+done
+cat "${STUB_FIXTURES}/dump.sql"

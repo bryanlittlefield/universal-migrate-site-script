@@ -1,0 +1,13 @@
+# Regular plugins deactivated locally by the local-hardening step (only if installed).
+# These are host-specific or only useful in production.
+sg-cachepress
+sg-security
+pantheon-advanced-page-cache
+nginx-helper
+breeze
+litespeed-cache
+
+# Uncomment to also disable these locally
+# wp-rocket
+# cloudflare
+# wordfence

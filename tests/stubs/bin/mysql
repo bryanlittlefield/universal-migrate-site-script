@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Fake local mysql client.
+printf 'mysql %s\n' "$*" >> "${STUB_LOG:-/dev/null}"
+q=""; prev=""
+for a in "$@"; do
+  [[ $a == --version ]] && { echo "mysql  Ver 8.0.36 for Linux on x86_64 (MySQL Community Server - GPL)"; exit 0; }
+  [[ $prev == -e ]] && q=$a
+  [[ $a == --execute=* ]] && q=${a#--execute=}
+  prev=$a
+done
+# shellcheck disable=SC2016  # backticks in the fake SQL are literal
+case "$q" in
+  "") [[ -t 0 ]] || cat >> "${STUB_IMPORT_CAPTURE:-/dev/null}" ;;
+  *"SELECT VERSION()"*) echo "${STUB_LOCAL_VERSION:-10.6.12-MariaDB-1:10.6.12+maria~ubu2004}" ;;
+  *"SHOW DATABASES LIKE"*) [[ ${STUB_LOCAL_DB_MISSING:-0} == 1 ]] || echo localdb ;;
+  *"SHOW TABLES"*) printf 'wp_options\nwp_posts\nwp_users\nwp_actionscheduler_actions\nwp_wfhits\n' ;;
+  *"COUNT(*)"*) echo "${STUB_LOCAL_TABLE_COUNT:-5}" ;;
+  *"CONCAT('DROP"*) printf 'DROP TABLE IF EXISTS `wp_old`;\n' ;;
+  *) ;;
+esac
+exit 0
