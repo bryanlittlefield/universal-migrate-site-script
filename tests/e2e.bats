@@ -179,6 +179,21 @@ migrate() { bash "$REPO_ROOT/migrate.sh" --env "$T/test.env" --plain "$@"; }
   [[ $output == *"Remove WP Engine config"*"platform is laravel"* ]]
 }
 
+@test "db_preserve_tables keeps local data for the listed tables" {
+  make_wp_site
+  write_env wordpress remote "db_preserve_tables='wp_options, missing_local'"
+  run migrate --yes
+  echo "$output"
+  [ "$status" -eq 0 ]
+  [[ $output == *"Preserving local data for: wp_options"* ]]
+  [[ $output == *"names 'missing_local' but the local database has no such table"* ]]
+  grep -q 'mysqldump --defaults-extra-file=.* --add-drop-table localdb wp_options$' "$STUB_LOG"
+  grep -q -- '--ignore-table=remotedb.wp_options' "$STUB_LOG"
+  grep -q 'preserved local tables: wp_options' "$T/import.sql"
+  grep -q 'Preserved local data: wp_options' "$T"/logs/migrate-report-*.txt
+  ! ls "$T/dumps"/localdb-preserved-* 2>/dev/null
+}
+
 @test "--dry-run changes nothing" {
   make_wp_site
   write_env wordpress remote

@@ -482,12 +482,13 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 1rem; justify-content: space
 
       <div class="step"><div class="num">4</div><div class="body">
         <div class="head"><h3>Migrate database</h3><span class="chip id">migrate-db</span><span class="chip">all platforms</span></div>
-        <p>Exports the remote database, backs up the current local one, drops the local tables and imports the fresh copy. Tables in <code>config/db-tables-exclude.txt</code> arrive empty (structure only). Details in <a href="#database">Database</a> below.</p>
+        <p>Exports the remote database, backs up the current local one, drops the local tables and imports the fresh copy. Tables in <code>config/db-tables-exclude.txt</code> arrive empty (structure only); tables in <code>db_preserve_tables</code> keep their local data (for example <code>wp_options</code>, so local URLs and settings survive). Details in <a href="#database">Database</a> below.</p>
         <div class="tech tech-block"><div class="eyebrow">Under the hood</div><ul>
           <li><code>SHOW TABLES</code> first, to expand wildcard excludes into <code>--ignore-table=db.table</code> and to compare counts afterwards.</li>
           <li>One <code>mysqldump</code> pass, or two when tables are excluded: <code>--no-data --skip-triggers</code> for structure, then <code>--no-create-info</code> with the ignores for data.</li>
           <li>Stream filter: strip <code>DEFINER=…</code> and <code>SQL SECURITY DEFINER</code>, drop the MariaDB sandbox line, map <code>utf8mb4_0900_*</code> collations when the local server needs it.</li>
           <li>Backup to <code>dumps/&lt;db&gt;-backup-&lt;ts&gt;.sql.gz</code>, drop every table and view listed in <code>information_schema</code>, import wrapped in <code>SET autocommit=0; unique_checks=0; foreign_key_checks=0 … COMMIT</code> with <code>--max-allowed-packet=1G</code> and a <code>pv</code> progress bar.</li>
+          <li><code>db_preserve_tables</code> (wildcards resolved against the local table list): <code>mysqldump --add-drop-table</code> of those tables before the drop, their names added to the export's <code>--ignore-table</code> list, and the saved SQL replayed after the import.</li>
         </ul></div>
       </div></div>
 
@@ -734,8 +735,10 @@ cp .env.example .env</code></pre>
       <div class="s"><strong>List remote tables</strong><span>expands wildcard excludes, remembers the count</span></div>
       <div class="s"><strong>Export</strong><span>one pass, or structure + data when tables are excluded</span></div>
       <div class="s guard"><strong>Back up local DB</strong><span>dumps/&lt;db&gt;-backup-&lt;ts&gt;.sql.gz</span></div>
+      <div class="s guard"><strong>Save preserved tables</strong><span>db_preserve_tables, if any</span></div>
       <div class="s"><strong>Drop local tables</strong><span>and views, from information_schema</span></div>
       <div class="s"><strong>Import</strong><span>bulk settings on, progress bar, COMMIT at the end</span></div>
+      <div class="s guard"><strong>Restore preserved tables</strong><span>local data back in place</span></div>
       <div class="s guard"><strong>Compare counts</strong><span>remote vs local, reported in verify</span></div>
     </div>
 

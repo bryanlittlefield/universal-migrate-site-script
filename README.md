@@ -63,7 +63,7 @@ Live copy: https://bryanlittlefield.github.io/universal-migrate-site-script/
 | `clear-web-root` | **opt-in** | all | Deletes everything inside `local_web_root` (dotfiles included). Refuses `/`, top-level dirs, `$HOME` and the script's own directory. Interactive runs must type the directory name. |
 | `maintenance-on` | run | WP, Laravel | Writes a non-expiring `.maintenance` file / `artisan down`. Skipped automatically if the web root was cleared. |
 | `sync-files` | run | all | `rsync` from the remote web root, honouring `config/rsync-exclude.txt`, `sync_mode` and `rsync_mode`. rsync exit 23/24 (vanished or unreadable files) is a warning, not a failure. |
-| `migrate-db` | run | all | Lists remote tables, exports (two passes when tables are data-excluded: structure of everything + data of the rest), **backs up the local DB**, drops all local tables and views, imports with session-level bulk settings. Shows table counts. |
+| `migrate-db` | run | all | Lists remote tables, exports (two passes when tables are data-excluded: structure of everything + data of the rest), **backs up the local DB**, saves any `db_preserve_tables`, drops all local tables and views, imports with session-level bulk settings, restores the preserved tables. Shows table counts. |
 | `app-config` | run | WP, Laravel | WordPress: writes `DB_*`, `WP_HOME`, `WP_SITEURL`, runs `wp search-replace` for `www.` variant → domain → extra pairs → scheme (if `remote_scheme` ≠ `local_scheme`), handles multisite (`--network`, `DOMAIN_CURRENT_SITE`). Laravel: updates `APP_URL`, `APP_ENV`, `APP_DEBUG`, `DB_*` in `.env`, generates `APP_KEY` if empty. |
 | `host-cleanup` | run | WP | If `wp-config.php` contains WP Engine markers: backs it up and removes the lines matched by `config/wpe-config-patterns.txt`. Removes the mu-plugins in `config/host-mu-plugins.txt` and the `object-cache.php` / `advanced-cache.php` drop-ins. |
 | `kinsta-plugins` | **opt-in** | WP | Downloads and unzips Kinsta's MU plugins. Only when the destination is Kinsta. |
@@ -105,6 +105,21 @@ Examples:
 
 Without a terminal and without `--yes` (cron, CI without `-t`), the script refuses to start instead of guessing.
 
+### Common recipes
+
+```bash
+# Refresh uploads and the database, but keep your local wp_options (URLs, active plugins, settings)
+sync_mode='uploads'
+db_preserve_tables='wp_options'
+
+# Code only, no media, no database
+sync_mode='code'
+skip_db_import='true'
+
+# Database only, straight from a cron job
+./migrate.sh --yes --only migrate-db,app-config,cache-refresh
+```
+
 ### Exit codes
 
 | Code | Meaning |
@@ -145,6 +160,7 @@ All settings live in `.env`; see [.env.example](.env.example) for every key with
 | `create_local_db` | `true` | Create the database if missing |
 | `local_db_backup` | `true` | Back up the existing local DB before dropping tables (`dumps/<db>-backup-<ts>.sql.gz`) |
 | `db_fix_collation` | `auto` | Map `utf8mb4_0900_*` (MySQL 8) collations when the local server is MariaDB or MySQL < 8 |
+| `db_preserve_tables` | | Local tables whose **data** survives the import, space or comma separated, wildcards allowed (`wp_options`, `*_options wp_users`). Saved before the drop, restored after the import; only their structure is taken from the remote |
 | `keep_dump` | `true` | Keep the downloaded dump in `dumps/` |
 
 ### Files

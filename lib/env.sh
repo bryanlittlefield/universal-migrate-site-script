@@ -46,7 +46,7 @@ apply_env_defaults() {
   : "${import_db_name:=}" "${import_db_user:=}" "${import_db_pass:=}"
   : "${import_db_host:=127.0.0.1}" "${import_db_port:=3306}" "${import_db_ssl_flag:=}"
   : "${create_local_db:=true}" "${local_db_backup:=true}" "${local_db_backup_filename:=}"
-  : "${db_fix_collation:=auto}" "${keep_dump:=true}"
+  : "${db_fix_collation:=auto}" "${keep_dump:=true}" "${db_preserve_tables:=}"
   # Platform
   : "${platform:=auto}" "${uploads_rel_path:=}"
   # File sync

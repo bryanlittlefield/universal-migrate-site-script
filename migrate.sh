@@ -12,7 +12,7 @@
 set -o pipefail
 set -u
 
-VERSION="1.0.0"
+VERSION="1.1.0"
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
 
 # shellcheck source=lib/util.sh

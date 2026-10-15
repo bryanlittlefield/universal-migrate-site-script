@@ -88,6 +88,12 @@ teardown() { rm -rf "$T"; }
   [ "$output" = $'--include=/wp-content/\n--include=/wp-content/uploads/\n--include=/wp-content/uploads/**\n--exclude=*' ]
 }
 
+@test "split_list accepts commas and whitespace" {
+  run split_list 'wp_options, wp_users  *_x'
+  [ "$output" = $'wp_options\nwp_users\n*_x' ]
+  [ -z "$(split_list '')" ]
+}
+
 @test "fmt_duration" {
   [ "$(fmt_duration 125)" = "2m 05s" ]
   [ "$(fmt_duration 0)" = "0m 00s" ]

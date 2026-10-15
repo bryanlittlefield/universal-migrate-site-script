@@ -75,6 +75,11 @@ read_list_file() {
   done < "$f"
 }
 
+# split_list "a, b c" — comma- and/or whitespace-separated list, one item per line.
+split_list() {
+  printf '%s' "${1-}" | tr ', ' '\n\n' | sed '/^$/d'
+}
+
 # sed_inplace ARGS... — portable `sed -i` (GNU and BSD).
 sed_inplace() {
   if sed --version >/dev/null 2>&1; then sed -i "$@"; else sed -i '' "$@"; fi

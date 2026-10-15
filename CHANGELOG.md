@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.0 — 2026-10-15
+
+### Added
+- `db_preserve_tables`: local tables (wildcards allowed) whose data survives the import. They are saved before the local tables are dropped, only their structure is taken from the remote, and they are restored after the import. Typical use: `db_preserve_tables='wp_options'` with `sync_mode='uploads'` to refresh media and content while keeping local URLs and settings.
+- README "Common recipes" section; the GitHub Pages guide and the SQL test fixture are now tracked.
+
 ## 1.0.0 — 2026-10-14
 
 First release. A ground-up rewrite of [builtmighty/migrate-site-script](https://github.com/builtmighty/migrate-site-script)

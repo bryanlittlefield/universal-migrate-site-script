@@ -107,6 +107,20 @@ local_table_count() {
   mysql_local -N -B -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${import_db_name}'"
 }
 
+local_tables() { mysql_local -N -B -e 'SHOW TABLES' "$import_db_name"; }
+
+# dump_local_tables FILE TABLE... — DROP/CREATE/INSERT for the given local
+# tables, so they can be put back after the import (db_preserve_tables).
+dump_local_tables() {
+  local file=$1
+  shift
+  printf -- '-- universal-migrate-site-script: preserved local tables: %s\nSET FOREIGN_KEY_CHECKS=0;\n' "$*" > "$file" || return 1
+  mysqldump_local --quick --single-transaction --no-tablespaces --add-drop-table "$import_db_name" "$@" >> "$file" || return 1
+  printf 'SET FOREIGN_KEY_CHECKS=1;\n' >> "$file"
+}
+
+restore_preserved_tables() { mysql_local "$import_db_name" < "$1"; }
+
 drop_all_local_tables() {
   local sql
   sql=$(mysql_local -N -B -e "SELECT CONCAT('DROP ', IF(table_type='VIEW','VIEW','TABLE'), ' IF EXISTS \`', table_name, '\`;') FROM information_schema.tables WHERE table_schema='${import_db_name}'") || return 1

@@ -30,6 +30,20 @@ step_migrate_db() {
     fi
   fi
 
+  # Local tables whose data must survive the import (db_preserve_tables).
+  PRESERVE_TABLES=""
+  if [[ -n $db_preserve_tables ]]; then
+    local ltables lt wanted
+    ltables=$(local_tables 2>/dev/null || true)
+    wanted=$(split_list "$db_preserve_tables")
+    PRESERVE_TABLES=$(resolve_table_patterns "$ltables" "$wanted")
+    while IFS= read -r lt; do
+      [[ -n $lt && $lt != *[\*\?]* ]] || continue
+      printf '%s\n' "$ltables" | grep -qx -- "$lt" || warn "db_preserve_tables names '${lt}' but the local database has no such table; nothing to preserve"
+    done <<< "$wanted"
+    [[ -n $PRESERVE_TABLES ]] && info "Preserving local data for: $(printf '%s' "$PRESERVE_TABLES" | tr '\n' ' ')"
+  fi
+
   db_export_to "$dump_file" || { db_teardown_remote; return 1; }
   db_teardown_remote
   is_dry_run && return 0
@@ -39,10 +53,25 @@ step_migrate_db() {
     backup_local_db || return 1
     report_note "Local DB backup: ${LOCAL_DB_BACKUP_FILE}"
   fi
+  local preserve_file=""
+  if [[ -n $PRESERVE_TABLES ]]; then
+    local -a plist=()
+    local t
+    while IFS= read -r t; do [[ -n $t ]] && plist+=("$t"); done <<< "$PRESERVE_TABLES"
+    preserve_file="$dump_dir/${import_db_name}-preserved-${RUN_TAG}.sql"
+    info "Saving the local data of ${#plist[@]} table(s) to ${preserve_file}"
+    dump_local_tables "$preserve_file" "${plist[@]}" || { error "Could not save the preserved tables"; return 1; }
+  fi
   info "Dropping ${count} existing table(s)/view(s) in '${import_db_name}'"
   drop_all_local_tables || { error "Could not drop the existing tables"; return 1; }
   info "Importing ${dump_file} ($(($(file_size "$dump_file") / 1024 / 1024))MB)"
   import_dump_file "$dump_file" || { error "Import failed"; return 1; }
+  if [[ -n $preserve_file ]]; then
+    info "Restoring the preserved local tables"
+    restore_preserved_tables "$preserve_file" || { error "Restoring the preserved tables failed; their data is kept in ${preserve_file}"; return 1; }
+    report_note "Preserved local data: $(printf '%s' "$PRESERVE_TABLES" | tr '\n' ' ')"
+    rm -f -- "$preserve_file"
+  fi
   LOCAL_TABLE_COUNT=$(local_table_count 2>/dev/null || printf '?')
   DB_MIGRATED=true
   ok "Imported ${LOCAL_TABLE_COUNT} table(s) (remote had ${REMOTE_TABLE_COUNT:-?})"
@@ -53,7 +82,7 @@ step_migrate_db() {
 
 # db_export_to FILE — export the remote database, honouring the table exclude list.
 db_export_to() {
-  local out=$1 tables patterns excluded t
+  local out=$1 tables patterns excluded="" t
   local -a ignore_opts=() base
   db_init_remote || return 1
   info "Listing remote tables"
@@ -76,6 +105,16 @@ db_export_to() {
       [[ -n $t && $t != *[\*\?]* ]] || continue
       printf '%s\n' "$tables" | grep -qx -- "$t" || warn "Exclude list names '${t}' but the remote database has no such table"
     done <<< "$patterns"
+  fi
+  # Preserved local tables: take only the structure from the remote.
+  if [[ -n ${PRESERVE_TABLES:-} ]]; then
+    while IFS= read -r t; do
+      [[ -n $t ]] || continue
+      printf '%s\n' "$tables" | grep -qx -- "$t" || continue
+      printf '%s\n' "$excluded" | grep -qx -- "$t" && continue
+      ignore_opts+=("--ignore-table=${export_db_name}.${t}")
+      info "Data excluded (kept from local): ${t}"
+    done <<< "$PRESERVE_TABLES"
   fi
 
   base=(--quick --single-transaction --no-tablespaces --default-character-set=utf8mb4)
