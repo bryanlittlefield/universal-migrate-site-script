@@ -11,6 +11,8 @@ dumps/*
 *.sql
 *.sql.gz
 *.log
+# ...but test fixtures must be tracked
+!tests/fixtures/*.sql
 
 # OS / editor junk
 .DS_Store

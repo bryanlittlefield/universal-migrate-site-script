@@ -38,6 +38,18 @@ $EDITOR .env            # remote server, remote DB, local web root, local DB, do
 
 Every run writes `logs/migrate-<timestamp>.log` (everything), `logs/rsync-<timestamp>.log` (every transferred file) and `logs/migrate-report-<timestamp>.txt` (one line per step with real pass/fail and timings).
 
+## Documentation site
+
+[`docs/index.html`](docs/index.html) is a single-page visual guide: flowcharts of a run and of the per-step logic, the two database export methods, a five-step setup walkthrough, the CLI cheat sheet and troubleshooting. A **Technical details** switch in its top bar reveals the exact commands, functions and files behind each section; add `#tech` to the URL to open it that way.
+
+It is plain HTML with no build step and is served by GitHub Pages from the `docs/` folder. To enable it on a fork: repository Settings → Pages → Deploy from a branch → `main` / `/docs`, or
+
+```bash
+gh api -X POST repos/<owner>/<repo>/pages -f 'source[branch]=main' -f 'source[path]=/docs'
+```
+
+Live copy: https://bryanlittlefield.github.io/universal-migrate-site-script/
+
 ## How a run works
 
 1. **Load and validate `.env`**, detect the platform (`wp-config.php` → WordPress, `artisan` → Laravel) if `platform=auto`.
@@ -92,6 +104,15 @@ Examples:
 `clear-web-root` and `kinsta-plugins` never run under `--yes` unless you name them: `--with <id>`, `--only <id>`, or `run_<id>=true` in `.env` (e.g. `run_clear_web_root='true'`). Interactively they simply default to **No** at the prompt.
 
 Without a terminal and without `--yes` (cron, CI without `-t`), the script refuses to start instead of guessing.
+
+### Exit codes
+
+| Code | Meaning |
+|---|---|
+| `0` | Every step that ran succeeded. Skipped steps do not affect the code. |
+| `1` | A step failed, the preflight failed, or the `.env` is invalid or missing. |
+| `2` | Unknown command-line option. |
+| `130` | Interrupted with Ctrl-C. The cleanup trap still closes the tunnel and removes temp files. |
 
 ## Configuration
 
@@ -193,6 +214,8 @@ Blank lines and `#` comments are ignored in all of them.
 - `wp-config.php` is backed up before host-cleanup edits it.
 - `--dry-run` runs the read-only parts (SSH, table listing, rsync `--dry-run`) and prints every command it would run, with secrets masked.
 - A cleanup trap closes the SSH tunnel and removes temp files on exit, and warns if maintenance mode is still active.
+- Remote commands run with `ssh -n`, so a remote call can never consume the script's own stdin (for example inside a `while read` loop). Only the password-delivering call forwards stdin.
+- The SSH tunnel is a control-socket master (`ssh -M -S`) and is torn down with `ssh -O exit`, so no stray tunnel outlives a run, even an interrupted one.
 - `.env` is git-ignored. Never commit it: the original repository's history contains real credentials for exactly this reason.
 
 ## Troubleshooting
@@ -230,9 +253,13 @@ Copy your old `.env` over; it works as is. Mapping of behaviours:
 ## Development
 
 ```bash
-shellcheck -x migrate.sh            # lints every sourced file too
-bats tests                          # unit tests + end-to-end runs against stubbed ssh/rsync/mysql/wp/php
+shellcheck -x migrate.sh                                  # lints every sourced file too
+shellcheck -s bash tests/stubs/bin/* tests/test_helper.bash
+bats tests                                                # 54 tests: unit + end-to-end against stubbed ssh/rsync/mysql/wp/php
+bats tests/e2e.bats                                       # one suite
 ```
+
+The end-to-end tests run `migrate.sh --yes --plain` against fake binaries in `tests/stubs/bin` that log every call to `$STUB_LOG`; the tunnel test fakes a listener with `python3`. Nothing talks to a real server or database.
 
 Layout:
 
@@ -249,8 +276,16 @@ lib/preflight.sh    checks that run before anything destructive
 steps/*.sh          one function per step
 config/*.txt        editable lists
 tests/              bats suites, stub binaries in tests/stubs/bin, fixtures
+docs/               the GitHub Pages guide (index.html, no build step)
+.github/workflows/  CI: shellcheck + bats on Ubuntu and macOS
 ```
 
 Adding a step: write `step_<name>()` in `steps/<name>.sh`, source it in `migrate.sh`, add a `register_step` line. The runner handles prompting, skipping, timing and reporting. Use `run_cmd` for anything that changes state so `--dry-run` works, and `return 1` on failure.
+
+Portability rules the code follows, because macOS still ships bash 3.2:
+
+- No bash 4 features (`mapfile`, `declare -A`, `${var,,}`). `set -u` is on, so expand possibly-empty arrays as `${arr[@]+"${arr[@]}"}`.
+- No `case` patterns with two quoted segments (`*"a "*" b"*`); bash 3.2 never matches them. Use one quoted segment.
+- No GNU-only tools: use `sed_inplace` instead of `sed -i`, and no `timeout`, `readlink -f` or `stat -c`.
 
 CI runs shellcheck and the test suite on Ubuntu and macOS (bash 3.2) on every push.
