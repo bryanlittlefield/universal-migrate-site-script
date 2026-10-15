@@ -2,6 +2,8 @@
 
 Pull a **WordPress** or **Laravel** site, files and database, from a remote server down to the machine the script runs on, then make it work on a local domain.
 
+**Visual guide with flowcharts and a setup walkthrough:** https://bryanlittlefield.github.io/universal-migrate-site-script/
+
 It is a ground-up rewrite of [builtmighty/migrate-site-script](https://github.com/builtmighty/migrate-site-script) with the same `.env` variable names and step order, so an existing `.env` keeps working. See [CHANGELOG.md](CHANGELOG.md) for what was fixed and added.
 
 ```

@@ -1,0 +1,934 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Universal Migrate Site Script</title>
+<meta name="description" content="How the universal-migrate-site-script pulls a WordPress or Laravel site from a remote server to your machine, and how to set it up.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: one reading column, a sticky bar with the Technical switch, diagrams that span the column. */
+:root {
+  --bg: #f2f5f7;
+  --surface: #ffffff;
+  --surface-2: #e7edf1;
+  --fg: #182128;
+  --muted: #5d6974;
+  --line: #d0d9e1;
+  --accent: #0e7c72;
+  --accent-ink: #ffffff;
+  --accent-soft: #d6eeea;
+  --ok: #257a43;
+  --warn: #a56d12;
+  --bad: #b8372b;
+  --code-bg: #1b222a;
+  --code-fg: #e6edf3;
+  --code-muted: #8b98a5;
+  --font-display: "Bricolage Grotesque", "IBM Plex Sans", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1319; --surface: #151b22; --surface-2: #1c252e; --fg: #e3e9ef; --muted: #94a0ac; --line: #2a3541;
+    --accent: #3cb9a9; --accent-ink: #06211d; --accent-soft: #173832;
+    --ok: #4fc274; --warn: #e2aa3f; --bad: #e8675c;
+    --code-bg: #0a0e13; --code-fg: #dfe6ed; --code-muted: #7f8c99;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1319; --surface: #151b22; --surface-2: #1c252e; --fg: #e3e9ef; --muted: #94a0ac; --line: #2a3541;
+  --accent: #3cb9a9; --accent-ink: #06211d; --accent-soft: #173832;
+  --ok: #4fc274; --warn: #e2aa3f; --bad: #e8675c;
+  --code-bg: #0a0e13; --code-fg: #dfe6ed; --code-muted: #7f8c99;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 72px; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { transition: none !important; animation: none !important; } }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.55;
+}
+img, svg { max-width: 100%; height: auto; }
+a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+a:hover { text-decoration-thickness: 2px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+h1, h2, h3, h4 { font-family: var(--font-display); line-height: 1.15; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(2rem, 5vw, 3.1rem); font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-size: clamp(1.5rem, 3vw, 2rem); font-weight: 700; }
+h3 { font-size: 1.15rem; font-weight: 700; }
+p { margin: 0; max-width: 68ch; }
+code, kbd { font-family: var(--font-mono); font-size: 0.92em; }
+p code, li code, td code, dd code, .tech code { background: var(--surface-2); padding: 0.08em 0.35em; border-radius: 4px; }
+.eyebrow { font-family: var(--font-mono); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); }
+.wrap { max-width: 1040px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+
+/* top bar */
+.bar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 10; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+.bar .wrap { display: flex; align-items: center; gap: 1rem; padding-block: 0.6rem; flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 0.55rem; font-family: var(--font-display); font-weight: 700; color: var(--fg); text-decoration: none; white-space: nowrap; }
+.brand svg { width: 26px; height: 26px; }
+.nav { display: flex; gap: 0.2rem 0.9rem; flex-wrap: wrap; font-size: 0.9rem; margin-inline-end: auto; }
+.nav a { color: var(--muted); text-decoration: none; }
+.nav a:hover { color: var(--fg); }
+.controls { display: flex; align-items: center; gap: 0.75rem; }
+.switch { display: inline-flex; align-items: center; gap: 0.5rem; cursor: pointer; font-size: 0.9rem; font-weight: 500; user-select: none; }
+.switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.switch .track { width: 42px; height: 24px; border-radius: 999px; background: var(--line); position: relative; transition: background 0.2s; flex: none; }
+.switch .track::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: var(--surface); box-shadow: 0 1px 2px rgba(0,0,0,0.3); transition: transform 0.2s; }
+.switch input:checked + .track { background: var(--accent); }
+.switch input:checked + .track::after { transform: translateX(18px); }
+.switch input:focus-visible + .track { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btn-theme { border: 1px solid var(--line); background: var(--surface); color: var(--fg); border-radius: 999px; padding: 0.3rem 0.7rem; font: inherit; font-size: 0.85rem; cursor: pointer; }
+.btn-theme:hover { border-color: var(--accent); }
+
+/* technical mode */
+.tech { display: none; }
+html[data-mode="tech"] .tech { display: block; }
+html[data-mode="tech"] svg .tech { display: inline; }
+html[data-mode="tech"] tr.tech { display: table-row; }
+.tech-block { border-left: 3px solid var(--accent); background: var(--surface-2); padding: 0.7rem 0.9rem; border-radius: 0 8px 8px 0; font-size: 0.9rem; }
+.tech-block .eyebrow { color: var(--accent); margin-bottom: 0.3rem; }
+.tech-block ul { margin: 0.3rem 0 0; padding-left: 1.1rem; }
+.tech-block li + li { margin-top: 0.25rem; }
+.mode-hint { font-size: 0.9rem; color: var(--muted); }
+html[data-mode="tech"] .mode-hint { display: none; }
+.pill-tech { display: none; font-family: var(--font-mono); font-size: 0.7rem; letter-spacing: 0.1em; background: var(--accent); color: var(--accent-ink); padding: 0.15rem 0.5rem; border-radius: 999px; }
+html[data-mode="tech"] .pill-tech { display: inline-block; }
+
+/* sections */
+section { padding-block: 3.5rem; border-bottom: 1px solid var(--line); }
+section:last-of-type { border-bottom: 0; }
+.section-head { display: grid; gap: 0.5rem; margin-bottom: 1.75rem; }
+.section-head p { color: var(--muted); font-size: 1.05rem; }
+.stack { display: grid; gap: 1.25rem; }
+
+/* hero */
+.hero { padding-block: 3.5rem 3rem; }
+.hero .wrap { display: grid; gap: 2rem; grid-template-columns: 1.1fr 1fr; align-items: center; }
+.hero-copy { display: grid; gap: 1.1rem; }
+.hero-copy p.lead { font-size: 1.15rem; color: var(--muted); }
+.facts { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.fact { font-family: var(--font-mono); font-size: 0.8rem; border: 1px solid var(--line); background: var(--surface); padding: 0.25rem 0.6rem; border-radius: 6px; color: var(--muted); }
+.cta { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+.btn { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.6rem 1.1rem; border-radius: 8px; font-weight: 600; text-decoration: none; border: 1px solid var(--line); background: var(--surface); color: var(--fg); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn:hover { filter: brightness(1.05); }
+
+/* figures */
+figure { margin: 0; display: grid; gap: 0.6rem; }
+figure .frame { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 1rem; overflow-x: auto; }
+figure svg { display: block; width: 100%; height: auto; font-family: var(--font-body); font-size: 13px; color: var(--fg); }
+figure svg .node { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
+figure svg .node.hot { fill: var(--accent-soft); stroke: var(--accent); }
+figure svg .node.stop { fill: var(--surface-2); stroke: var(--line); }
+figure svg .edge { stroke: currentColor; stroke-width: 1.5; fill: none; }
+figure svg .edge.dashed { stroke-dasharray: 5 4; }
+figure svg .edge.accent { stroke: var(--accent); }
+figure svg .lane { stroke: var(--line); stroke-width: 1.5; stroke-dasharray: 4 4; }
+figure svg text { fill: currentColor; }
+figure svg .label { font-size: 11px; fill: var(--muted); }
+figure svg .mono { font-family: var(--font-mono); font-size: 10.5px; fill: var(--muted); }
+figure svg .title { font-weight: 600; }
+figure svg .tech text, figure svg text.tech { font-family: var(--font-mono); font-size: 10.5px; fill: var(--accent); }
+figcaption { font-size: 0.9rem; color: var(--muted); }
+.two-col { display: grid; gap: 1.25rem; grid-template-columns: 1fr 1fr; }
+.two-col > * { min-width: 0; }
+
+/* steps timeline */
+.steps { display: grid; gap: 0; counter-reset: step; }
+.step { display: grid; grid-template-columns: 56px 1fr; gap: 0 1rem; padding-block: 1.1rem; border-top: 1px solid var(--line); }
+.step:first-child { border-top: 0; }
+.step .num { font-family: var(--font-display); font-weight: 700; font-size: 1.4rem; color: var(--muted); font-variant-numeric: tabular-nums; padding-top: 0.1rem; }
+.step .body { display: grid; gap: 0.5rem; min-width: 0; }
+.step .head { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.7rem; }
+.chip { font-family: var(--font-mono); font-size: 0.75rem; padding: 0.15rem 0.5rem; border-radius: 6px; border: 1px solid var(--line); background: var(--surface-2); color: var(--muted); white-space: nowrap; }
+.chip.id { color: var(--fg); background: var(--surface); }
+.chip.optin { border-color: var(--warn); color: var(--warn); background: transparent; }
+.chip.wp { border-color: transparent; background: var(--accent-soft); color: var(--accent); }
+
+/* setup */
+.setup { display: grid; gap: 1.5rem; }
+.setup-step { display: grid; grid-template-columns: 40px 1fr; gap: 0 1rem; }
+.setup-step .n { width: 32px; height: 32px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); font-family: var(--font-display); font-weight: 700; display: grid; place-items: center; }
+.setup-step .body { display: grid; gap: 0.6rem; min-width: 0; }
+pre.code { position: relative; margin: 0; background: var(--code-bg); color: var(--code-fg); border-radius: 10px; padding: 0.9rem 1rem; overflow-x: auto; font-family: var(--font-mono); font-size: 0.86rem; line-height: 1.55; }
+pre.code code { background: none; padding: 0; font-size: inherit; }
+pre.code .c { color: var(--code-muted); }
+pre.code .copy { position: absolute; top: 0.5rem; right: 0.5rem; font: inherit; font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; background: transparent; color: var(--code-muted); border: 1px solid var(--code-muted); border-radius: 6px; padding: 0.2rem 0.5rem; cursor: pointer; }
+pre.code .copy:hover, pre.code .copy.done { color: var(--code-fg); border-color: var(--code-fg); }
+.kv { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.kv > div { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 0.9rem 1rem; min-width: 0; }
+.kv h4 { font-size: 0.95rem; margin-bottom: 0.5rem; }
+.kv table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+.kv td { padding: 0.3rem 0; border-top: 1px solid var(--line); vertical-align: top; }
+.kv td:first-child { font-family: var(--font-mono); font-size: 0.8rem; white-space: nowrap; padding-right: 0.8rem; }
+.kv tr:first-child td { border-top: 0; }
+.req { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+
+/* generic tables */
+.tbl-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+table.tbl { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+table.tbl th, table.tbl td { text-align: left; padding: 0.6rem 0.8rem; border-top: 1px solid var(--line); vertical-align: top; }
+table.tbl th { border-top: 0; background: var(--surface-2); font-weight: 600; font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+table.tbl td code { white-space: nowrap; }
+
+/* import sequence stepper */
+.seq { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: stretch; }
+.seq .s { flex: 1 1 140px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 0.7rem 0.8rem; display: grid; gap: 0.25rem; min-width: 0; position: relative; }
+.seq .s strong { font-size: 0.95rem; }
+.seq .s span { font-size: 0.85rem; color: var(--muted); }
+.seq .s.guard { border-color: var(--ok); }
+.seq .s.guard strong::before { content: "✓ "; color: var(--ok); }
+
+/* safety grid */
+.grid3 { display: grid; gap: 1rem; grid-template-columns: repeat(3, 1fr); }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 1.1rem; display: grid; gap: 0.5rem; align-content: start; min-width: 0; }
+.card h3 { font-size: 1.05rem; }
+.card p { font-size: 0.93rem; color: var(--muted); }
+.card .icon { width: 30px; height: 30px; color: var(--accent); }
+
+/* troubleshooting */
+details { border: 1px solid var(--line); background: var(--surface); border-radius: 10px; padding: 0.3rem 1rem; }
+details + details { margin-top: 0.6rem; }
+summary { cursor: pointer; font-weight: 600; padding-block: 0.5rem; }
+details p { padding-bottom: 0.7rem; }
+
+footer { padding-block: 2.5rem; color: var(--muted); font-size: 0.9rem; }
+footer .wrap { display: flex; flex-wrap: wrap; gap: 1rem; justify-content: space-between; }
+
+@media (max-width: 800px) {
+  .hero .wrap { grid-template-columns: 1fr; }
+  .two-col, .kv, .grid3 { grid-template-columns: 1fr; }
+  .nav { display: none; }
+  .step { grid-template-columns: 40px 1fr; }
+  section { padding-block: 2.5rem; }
+}
+</style>
+</head>
+<body>
+
+<header class="bar">
+  <div class="wrap">
+    <a class="brand" href="#top" aria-label="Universal Migrate Site Script, back to top">
+      <svg viewBox="0 0 26 26" aria-hidden="true"><rect x="1.5" y="6" width="9" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><rect x="15.5" y="6" width="9" height="14" rx="2" fill="none" stroke="var(--accent)" stroke-width="2"/><path d="M10.5 13h5m-2-2.5 2 2.5-2 2.5" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>universal-migrate-site-script</span>
+      <span class="pill-tech">TECH</span>
+    </a>
+    <nav class="nav" aria-label="Sections">
+      <a href="#how">How it works</a>
+      <a href="#steps">Steps</a>
+      <a href="#setup">Setup</a>
+      <a href="#database">Database</a>
+      <a href="#files">Files</a>
+      <a href="#cli">CLI</a>
+      <a href="#safety">Safety</a>
+      <a href="#trouble">Troubleshooting</a>
+    </nav>
+    <div class="controls">
+      <label class="switch" for="techToggle">
+        <input type="checkbox" id="techToggle">
+        <span class="track" aria-hidden="true"></span>
+        <span>Technical details</span>
+      </label>
+      <button class="btn-theme" id="themeBtn" type="button" aria-label="Switch colour theme">Theme: auto</button>
+    </div>
+  </div>
+</header>
+
+<main id="top">
+
+<section class="hero">
+  <div class="wrap">
+    <div class="hero-copy">
+      <span class="eyebrow">WordPress &amp; Laravel · remote → local</span>
+      <h1>Pull a live site down to your machine, without the guesswork.</h1>
+      <p class="lead">One command copies the files and the database from a remote server, points the site at a local domain, strips host-specific settings, and tells you exactly what it did.</p>
+      <div class="facts">
+        <span class="fact">11 steps, each confirmable</span>
+        <span class="fact">bash 3.2+ · macOS &amp; Linux</span>
+        <span class="fact">preflight before anything destructive</span>
+        <span class="fact">local DB backed up first</span>
+      </div>
+      <div class="cta">
+        <a class="btn primary" href="#setup">Get set up</a>
+        <a class="btn" href="https://github.com/bryanlittlefield/universal-migrate-site-script">View on GitHub</a>
+      </div>
+      <p class="mode-hint">Flip <strong>Technical details</strong> in the top bar to see the exact commands, functions and files behind each part of this page.</p>
+    </div>
+    <figure>
+      <div class="frame">
+        <svg viewBox="0 0 640 230" role="img" aria-label="Files and the database travel from the remote server to this machine over SSH">
+          <defs>
+            <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker>
+            <marker id="arrA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker>
+          </defs>
+          <rect class="node" x="20" y="44" width="210" height="150" rx="12"/>
+          <text x="125" y="74" text-anchor="middle" class="title">Remote server</text>
+          <text x="125" y="104" text-anchor="middle">web root</text>
+          <text x="125" y="120" text-anchor="middle" class="mono">remote_ssh_web_root</text>
+          <text x="125" y="152" text-anchor="middle">database</text>
+          <text x="125" y="168" text-anchor="middle" class="mono">export_db_name</text>
+
+          <rect class="node hot" x="410" y="44" width="210" height="150" rx="12"/>
+          <text x="515" y="74" text-anchor="middle" class="title">This machine</text>
+          <text x="515" y="104" text-anchor="middle">web root</text>
+          <text x="515" y="120" text-anchor="middle" class="mono">local_web_root</text>
+          <text x="515" y="152" text-anchor="middle">database</text>
+          <text x="515" y="168" text-anchor="middle" class="mono">import_db_name</text>
+
+          <line class="lane" x1="320" y1="30" x2="320" y2="210"/>
+          <text x="320" y="22" text-anchor="middle" class="label">SSH</text>
+
+          <line class="edge accent" x1="230" y1="100" x2="408" y2="100" marker-end="url(#arrA)"/>
+          <text x="320" y="92" text-anchor="middle" class="label">files · rsync</text>
+          <text x="320" y="116" text-anchor="middle" class="tech">rsync -rlpt --partial -e ssh</text>
+
+          <line class="edge accent" x1="230" y1="150" x2="408" y2="150" marker-end="url(#arrA)"/>
+          <text x="320" y="142" text-anchor="middle" class="label">database · mysqldump</text>
+          <text x="320" y="166" text-anchor="middle" class="tech">tunnel, or stream mysqldump | gzip</text>
+
+          <text x="320" y="220" text-anchor="middle" class="label">then: config, URLs, caches, verify</text>
+        </svg>
+      </div>
+      <figcaption>Two things cross the SSH boundary: the files (rsync) and the database (mysqldump). Everything else happens locally afterwards.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section id="how">
+  <div class="wrap stack">
+    <div class="section-head">
+      <span class="eyebrow">How it works</span>
+      <h2>A run, start to finish</h2>
+      <p>Nothing is changed until the configuration validates, the preflight passes and you say go. After that the steps run in a fixed order and every one of them is reported with its real result.</p>
+    </div>
+
+    <div class="two-col">
+      <figure>
+        <div class="frame">
+          <svg viewBox="0 0 520 640" role="img" aria-label="Flowchart of one run: load the env file, validate and detect the platform, print the plan, run preflight, confirm, run the eleven steps, write the report">
+            <defs>
+              <marker id="arr2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker>
+            </defs>
+            <!-- spine x=160, nodes 30..290 (w 260) ; side nodes 330..510 -->
+            <rect class="node" x="30" y="20" width="260" height="52" rx="8"/>
+            <text x="160" y="43" text-anchor="middle" class="title">Load .env</text>
+            <text x="160" y="62" text-anchor="middle" class="tech">load_env_file · apply_env_defaults</text>
+            <line class="edge" x1="160" y1="72" x2="160" y2="98" marker-end="url(#arr2)"/>
+
+            <rect class="node" x="30" y="100" width="260" height="52" rx="8"/>
+            <text x="160" y="123" text-anchor="middle" class="title">Validate, detect the platform</text>
+            <text x="160" y="142" text-anchor="middle" class="tech">validate_env · detect_platform</text>
+            <line class="edge" x1="160" y1="152" x2="160" y2="178" marker-end="url(#arr2)"/>
+
+            <rect class="node" x="30" y="180" width="260" height="52" rx="8"/>
+            <text x="160" y="203" text-anchor="middle" class="title">Print the plan: run / skip per step</text>
+            <text x="160" y="222" text-anchor="middle" class="tech">print_banner · setup_logging</text>
+            <line class="edge" x1="160" y1="232" x2="160" y2="258" marker-end="url(#arr2)"/>
+
+            <polygon class="node" points="40,300 160,260 280,300 160,340"/>
+            <text x="160" y="296" text-anchor="middle" class="title">Preflight passes?</text>
+            <text x="160" y="314" text-anchor="middle" class="label">tools · SSH · DB logins</text>
+            <text x="150" y="370" text-anchor="end" class="tech">preflight_run</text>
+            <line class="edge" x1="280" y1="300" x2="328" y2="300" marker-end="url(#arr2)"/>
+            <text x="304" y="293" text-anchor="middle" class="label">no</text>
+            <rect class="node stop" x="330" y="274" width="180" height="52" rx="8"/>
+            <text x="420" y="296" text-anchor="middle" class="title">Stop</text>
+            <text x="420" y="314" text-anchor="middle" class="label">nothing was touched</text>
+            <line class="edge" x1="160" y1="340" x2="160" y2="378" marker-end="url(#arr2)"/>
+            <text x="172" y="366" class="label">yes</text>
+
+            <polygon class="node" points="40,420 160,380 280,420 160,460"/>
+            <text x="160" y="416" text-anchor="middle" class="title">Start the migration?</text>
+            <text x="160" y="434" text-anchor="middle" class="label">asks, or --yes</text>
+            <text x="150" y="490" text-anchor="end" class="tech">confirm · AUTO_CONFIRM</text>
+            <line class="edge" x1="280" y1="420" x2="328" y2="420" marker-end="url(#arr2)"/>
+            <text x="304" y="413" text-anchor="middle" class="label">no</text>
+            <rect class="node stop" x="330" y="394" width="180" height="52" rx="8"/>
+            <text x="420" y="425" text-anchor="middle" class="title">Abort</text>
+            <line class="edge" x1="160" y1="460" x2="160" y2="498" marker-end="url(#arr2)"/>
+            <text x="172" y="486" class="label">yes</text>
+
+            <rect class="node hot" x="30" y="500" width="260" height="52" rx="8"/>
+            <text x="160" y="523" text-anchor="middle" class="title">Run the 11 steps in order</text>
+            <text x="160" y="542" text-anchor="middle" class="tech">run_all_steps · lib/runner.sh</text>
+            <line class="edge" x1="160" y1="552" x2="160" y2="578" marker-end="url(#arr2)"/>
+
+            <rect class="node" x="30" y="580" width="260" height="52" rx="8"/>
+            <text x="160" y="603" text-anchor="middle" class="title">Report + exit code</text>
+            <text x="160" y="622" text-anchor="middle" class="tech">logs/migrate-report-&lt;ts&gt;.txt</text>
+          </svg>
+        </div>
+        <figcaption>Two exits before anything runs: a failed preflight, or answering no. The exit code is non-zero if any step failed.</figcaption>
+      </figure>
+
+      <figure>
+        <div class="frame">
+          <svg viewBox="0 0 520 640" role="img" aria-label="Flowchart of what happens for each step: skip checks, the prompt, running the step function, recording success or failure, and deciding whether to continue">
+            <defs>
+              <marker id="arr3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker>
+            </defs>
+            <!-- spine x=160 ; side nodes 330..510 -->
+            <rect class="node" x="30" y="20" width="260" height="52" rx="8"/>
+            <text x="160" y="43" text-anchor="middle" class="title">Next step</text>
+            <text x="160" y="62" text-anchor="middle" class="tech">run_step · register_step order</text>
+            <line class="edge" x1="160" y1="72" x2="160" y2="98" marker-end="url(#arr3)"/>
+
+            <polygon class="node" points="40,140 160,100 280,140 160,180"/>
+            <text x="160" y="136" text-anchor="middle" class="title">Skipped?</text>
+            <text x="160" y="154" text-anchor="middle" class="label">--skip · skip_*=true · platform · opt-in</text>
+            <line class="edge" x1="280" y1="140" x2="328" y2="140" marker-end="url(#arr3)"/>
+            <text x="304" y="133" text-anchor="middle" class="label">yes</text>
+            <rect class="node stop" x="330" y="114" width="170" height="52" rx="8"/>
+            <text x="415" y="136" text-anchor="middle" class="title">Record ⏭ skipped</text>
+            <text x="415" y="154" text-anchor="middle" class="label">with the reason</text>
+            <line class="edge" x1="160" y1="180" x2="160" y2="218" marker-end="url(#arr3)"/>
+            <text x="172" y="206" class="label">no</text>
+            <text x="150" y="210" text-anchor="end" class="tech">step_skip_reason</text>
+
+            <polygon class="node" points="40,260 160,220 280,260 160,300"/>
+            <text x="160" y="256" text-anchor="middle" class="title">Run it?</text>
+            <text x="160" y="274" text-anchor="middle" class="label">prompt [Y/n], or --yes</text>
+            <line class="edge" x1="280" y1="260" x2="328" y2="260" marker-end="url(#arr3)"/>
+            <text x="304" y="253" text-anchor="middle" class="label">no</text>
+            <rect class="node stop" x="330" y="234" width="170" height="52" rx="8"/>
+            <text x="415" y="265" text-anchor="middle" class="title">Record ⏭ by user</text>
+            <line class="edge" x1="160" y1="300" x2="160" y2="338" marker-end="url(#arr3)"/>
+            <text x="172" y="326" class="label">yes</text>
+
+            <rect class="node hot" x="30" y="340" width="260" height="52" rx="8"/>
+            <text x="160" y="363" text-anchor="middle" class="title">Run the step function</text>
+            <text x="160" y="382" text-anchor="middle" class="tech">step_&lt;id&gt;() · timed with SECONDS</text>
+            <line class="edge" x1="160" y1="392" x2="160" y2="418" marker-end="url(#arr3)"/>
+
+            <polygon class="node" points="40,460 160,420 280,460 160,500"/>
+            <text x="160" y="456" text-anchor="middle" class="title">Succeeded?</text>
+            <text x="160" y="474" text-anchor="middle" class="label">exit code 0</text>
+            <line class="edge" x1="280" y1="460" x2="328" y2="460" marker-end="url(#arr3)"/>
+            <text x="304" y="453" text-anchor="middle" class="label">yes</text>
+            <rect class="node" x="330" y="434" width="170" height="52" rx="8"/>
+            <text x="415" y="456" text-anchor="middle" class="title">Record ✅ + duration</text>
+            <text x="415" y="474" text-anchor="middle" class="tech">report_add</text>
+            <line class="edge" x1="160" y1="500" x2="160" y2="538" marker-end="url(#arr3)"/>
+            <text x="172" y="526" class="label">no → record ❌</text>
+
+            <polygon class="node" points="40,580 160,540 280,580 160,620"/>
+            <text x="160" y="576" text-anchor="middle" class="title">Continue?</text>
+            <text x="160" y="594" text-anchor="middle" class="label">asks, or continue_on_error</text>
+            <line class="edge" x1="280" y1="580" x2="328" y2="580" marker-end="url(#arr3)"/>
+            <text x="304" y="573" text-anchor="middle" class="label">no</text>
+            <rect class="node stop" x="330" y="554" width="170" height="52" rx="8"/>
+            <text x="415" y="576" text-anchor="middle" class="title">Stop → report</text>
+            <text x="415" y="594" text-anchor="middle" class="label">exit code 1</text>
+            <!-- loop back: from side nodes and Continue yes, along x=500 up to Next step -->
+            <path class="edge dashed" d="M160 620 V632 H512 V46 H292" marker-end="url(#arr3)"/>
+            <text x="200" y="628" class="label">yes · next step</text>
+          </svg>
+        </div>
+        <figcaption>Every step goes through the same gate. Opt-in steps (clear-web-root, kinsta-plugins) are skipped under <code>--yes</code> unless you name them.</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<section id="steps">
+  <div class="wrap stack">
+    <div class="section-head">
+      <span class="eyebrow">The steps</span>
+      <h2>What each step does</h2>
+      <p>Same order as the original script. Interactively you confirm each one; the plan at the top of a run shows which will be skipped and why. <code>./migrate.sh --list-steps</code> prints the ids.</p>
+    </div>
+    <div class="steps">
+
+      <div class="step"><div class="num">1</div><div class="body">
+        <div class="head"><h3>Clear local web root</h3><span class="chip id">clear-web-root</span><span class="chip optin">opt-in</span><span class="chip">all platforms</span></div>
+        <p>Deletes everything inside <code>local_web_root</code>, dotfiles included, so the sync starts from nothing. Off by default; interactively you must type the directory name to confirm.</p>
+        <div class="tech tech-block"><div class="eyebrow">Under the hood</div><ul>
+          <li>Refuses <code>/</code>, <code>.</code>, <code>$HOME</code>, relative paths, anything shallower than two levels, and the script's own directory or any parent of it.</li>
+          <li>Runs <code>find "$root" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +</code>, then sets <code>WEB_ROOT_CLEARED</code> so step 2 is skipped automatically.</li>
+          <li>Enable with <code>--with clear-web-root</code>, <code>--only clear-web-root</code>, or <code>run_clear_web_root='true'</code>.</li>
+        </ul></div>
+      </div></div>
+
+      <div class="step"><div class="num">2</div><div class="body">
+        <div class="head"><h3>Enable maintenance mode (local site)</h3><span class="chip id">maintenance-on</span><span class="chip wp">WordPress</span><span class="chip wp">Laravel</span></div>
+        <p>Visitors of the local site see a maintenance notice while files and data are replaced.</p>
+        <div class="tech tech-block"><div class="eyebrow">Under the hood</div><ul>
+          <li>WordPress: writes <code>.maintenance</code> containing <code>&lt;?php $upgrading = time(); ?&gt;</code>, which never expires (core's own file expires after 10 minutes, shorter than most syncs). Laravel: <code>php artisan down --retry=60</code>.</li>
+          <li>Skipped when the web root was just cleared or does not exist yet. If the run aborts with maintenance still on, the exit message says so.</li>
+        </ul></div>
+      </div></div>
+
+      <div class="step"><div class="num">3</div><div class="body">
+        <div class="head"><h3>Sync files from remote</h3><span class="chip id">sync-files</span><span class="chip">all platforms</span></div>
+        <p>Copies the remote web root with rsync, skipping caches, backups, dumps and whatever else is in <code>config/rsync-exclude.txt</code>. Shows a progress bar and writes a per-file log.</p>
+        <div class="tech tech-block"><div class="eyebrow">Under the hood</div><ul>
+          <li><code>rsync -rlpt --human-readable --stats --partial --exclude=/.maintenance --exclude=.git/ --exclude='*.sql' --exclude-from=config/rsync-exclude.txt --log-file=logs/rsync-&lt;ts&gt;.log -e "ssh -p &lt;port&gt; [-i key]" user@host:/remote/root/ /local/root/</code></li>
+          <li><code>rsync_mode</code> adds <code>--ignore-existing</code> or <code>--delete</code>; <code>sync_mode=code</code> excludes the uploads dir, <code>uploads</code> includes only it. <code>--info=progress2</code> is used when the terminal and rsync version allow.</li>
+          <li>Exit 23/24 (files vanished or unreadable mid-transfer) is a warning; any other non-zero exit fails the step.</li>
+        </ul></div>
+      </div></div>
+
+      <div class="step"><div class="num">4</div><div class="body">
+        <div class="head"><h3>Migrate database</h3><span class="chip id">migrate-db</span><span class="chip">all platforms</span></div>
+        <p>Exports the remote database, backs up the current local one, drops the local tables and imports the fresh copy. Tables in <code>config/db-tables-exclude.txt</code> arrive empty (structure only). Details in <a href="#database">Database</a> below.</p>
+        <div class="tech tech-block"><div class="eyebrow">Under the hood</div><ul>
+          <li><code>SHOW TABLES</code> first, to expand wildcard excludes into <code>--ignore-table=db.table</code> and to compare counts afterwards.</li>
+          <li>One <code>mysqldump</code> pass, or two when tables are excluded: <code>--no-data --skip-triggers</code> for structure, then <code>--no-create-info</code> with the ignores for data.</li>
+          <li>Stream filter: strip <code>DEFINER=…</code> and <code>SQL SECURITY DEFINER</code>, drop the MariaDB sandbox line, map <code>utf8mb4_0900_*</code> collations when the local server needs it.</li>
+          <li>Backup to <code>dumps/&lt;db&gt;-backup-&lt;ts&gt;.sql.gz</code>, drop every table and view listed in <code>information_schema</code>, import wrapped in <code>SET autocommit=0; unique_checks=0; foreign_key_checks=0 … COMMIT</code> with <code>--max-allowed-packet=1G</code> and a <code>pv</code> progress bar.</li>
+        </ul></div>
+      </div></div>
+
+      <div class="step"><div class="num">5</div><div class="body">
+        <div class="head"><h3>Update app config and URLs</h3><span class="chip id">app-config</span><span class="chip wp">WordPress</span><span class="chip wp">Laravel</span></div>
+        <p>Points the site at the local database and domain. WordPress gets a full search-replace of the old domain (including the <code>www.</code> form and the scheme if it changed); Laravel gets its <code>.env</code> updated.</p>
+        <div class="tech tech-block"><div class="eyebrow">Under the hood</div><ul>
+          <li>WordPress: <code>wp config set</code> for <code>DB_NAME DB_USER DB_PASSWORD DB_HOST WP_HOME WP_SITEURL</code>, then <code>wp search-replace --recurse-objects --skip-columns=guid --all-tables --report-changed-only --skip-tables=&lt;list&gt;</code> for each pair in order: <code>www.old → new</code>, <code>old → new</code>, <code>config/domain-pairs.txt</code>, then <code>https://new → http://new</code> (and the <code>\/\/</code> escaped form) when schemes differ.</li>
+          <li>Multisite: detected with <code>wp core is-installed --network</code>; search-replace runs with <code>--network --url=…</code> and <code>DOMAIN_CURRENT_SITE</code> is updated.</li>
+          <li>Laravel: <code>APP_URL APP_ENV APP_DEBUG DB_HOST DB_PORT DB_DATABASE DB_USERNAME DB_PASSWORD</code> are replaced in place or appended; <code>artisan key:generate --force</code> runs if <code>APP_KEY</code> is empty.</li>
+        </ul></div>
+      </div></div>
+
+      <div class="step"><div class="num">6</div><div class="body">
+        <div class="head"><h3>Remove WP Engine config and host drop-ins</h3><span class="chip id">host-cleanup</span><span class="chip wp">WordPress</span></div>
+        <p>Takes out the WP Engine lines in <code>wp-config.php</code> (after backing it up), the WP Engine must-use plugins, and the object-cache / advanced-cache drop-ins that only work on the host.</p>
+        <div class="tech tech-block"><div class="eyebrow">Under the hood</div><ul>
+          <li>Config edits only happen if the file contains <code>WPE_</code>, <code>PWP_</code>, <code>wpengine</code> or <code>is_wpe</code>. Backup: <code>wp-config.php.bak-&lt;ts&gt;</code>. Lines matching the regexes in <code>config/wpe-config-patterns.txt</code> are deleted; <code>WP_HOME</code>/<code>WP_SITEURL</code> are left alone because step 5 just set them.</li>
+          <li>mu-plugins from <code>config/host-mu-plugins.txt</code> are removed if present; <code>object-cache.php</code> and <code>advanced-cache.php</code> go when <code>wp_remove_dropins=true</code>.</li>
+        </ul></div>
+      </div></div>
+
+      <div class="step"><div class="num">7</div><div class="body">
+        <div class="head"><h3>Install Kinsta MU plugins</h3><span class="chip id">kinsta-plugins</span><span class="chip optin">opt-in</span><span class="chip wp">WordPress</span></div>
+        <p>Only when the destination is Kinsta. Downloads and unzips Kinsta's must-use plugins into <code>wp-content/mu-plugins</code>.</p>
+        <div class="tech tech-block"><div class="eyebrow">Under the hood</div><ul>
+          <li><code>curl -fsSL --retry 3 -o … $kinsta_mu_plugins_url</code>, <code>unzip -oq … -d wp-content/mu-plugins</code>, then checks that <code>kinsta-mu-plugins.php</code> exists. Skipped if already installed unless <code>kinsta_force_reinstall=true</code>.</li>
+        </ul></div>
+      </div></div>
+
+      <div class="step"><div class="num">8</div><div class="body">
+        <div class="head"><h3>Apply local WordPress settings</h3><span class="chip id">local-hardening</span><span class="chip wp">WordPress</span></div>
+        <p>Makes the copy behave like a development site: environment type, debug mode, search engines discouraged, host-only plugins deactivated, and optionally a local admin user you can log in with.</p>
+        <div class="tech tech-block"><div class="eyebrow">Under the hood</div><ul>
+          <li><code>wp config set WP_ENVIRONMENT_TYPE local</code>, <code>wp config set WP_DEBUG true --raw</code>, <code>wp option update blog_public 0</code>.</li>
+          <li>Each slug in <code>config/host-plugins-deactivate.txt</code> is checked with <code>wp plugin is-installed</code> before <code>wp plugin deactivate</code>.</li>
+          <li>With <code>wp_local_admin_user</code> set: <code>wp user create … --role=administrator</code> or <code>wp user update</code>, plus <code>wp super-admin add</code> on multisite.</li>
+        </ul></div>
+      </div></div>
+
+      <div class="step"><div class="num">9</div><div class="body">
+        <div class="head"><h3>Flush caches and permalinks</h3><span class="chip id">cache-refresh</span><span class="chip wp">WordPress</span><span class="chip wp">Laravel</span></div>
+        <p>Rewrites and caches are rebuilt so the first page load reflects the new domain.</p>
+        <div class="tech tech-block"><div class="eyebrow">Under the hood</div><ul>
+          <li>WordPress: <code>wp rewrite flush</code>, <code>wp cache flush</code>, <code>wp transient delete --all</code>, and <code>wp kinsta cache purge</code> if that command exists. Laravel: <code>php artisan optimize:clear</code>.</li>
+        </ul></div>
+      </div></div>
+
+      <div class="step"><div class="num">10</div><div class="body">
+        <div class="head"><h3>Verify the migrated site</h3><span class="chip id">verify</span><span class="chip">all platforms</span></div>
+        <p>Checks that the site loads, that its URLs point at the local domain, that the table count matches the remote, and that the local domain answers over HTTP. Only hard failures fail the step; the rest are warnings.</p>
+        <div class="tech tech-block"><div class="eyebrow">Under the hood</div><ul>
+          <li><code>wp core version</code> (failure = step fails), <code>wp option get home</code> must contain <code>local_domain</code>, optional <code>wp db check</code> (<code>verify_db_check</code>), <code>artisan --version</code> for Laravel.</li>
+          <li><code>curl -ksS -o /dev/null -w '%{http_code}' --max-time 20 &lt;scheme&gt;://&lt;local_domain&gt;/</code>; 200, 301 or 302 pass, anything else is a warning because the domain may not resolve from the machine running the script.</li>
+        </ul></div>
+      </div></div>
+
+      <div class="step"><div class="num">11</div><div class="body">
+        <div class="head"><h3>Disable maintenance mode (local site)</h3><span class="chip id">maintenance-off</span><span class="chip wp">WordPress</span><span class="chip wp">Laravel</span></div>
+        <p>Removes the maintenance notice. The site is live locally.</p>
+        <div class="tech tech-block"><div class="eyebrow">Under the hood</div><ul>
+          <li>Removes <code>.maintenance</code> or runs <code>php artisan up</code>.</li>
+        </ul></div>
+      </div></div>
+
+    </div>
+  </div>
+</section>
+
+<section id="setup">
+  <div class="wrap stack">
+    <div class="section-head">
+      <span class="eyebrow">Setup</span>
+      <h2>Up and running in five steps</h2>
+      <p>You need SSH access to the remote server, its database credentials, and a local web root and database to land in. The script checks everything else for you.</p>
+    </div>
+    <div class="setup">
+
+      <div class="setup-step"><div class="n">1</div><div class="body">
+        <h3>Have the tools</h3>
+        <p>On the machine that will host the copy (usually a Linux container, but a Mac works too):</p>
+        <div class="req">
+          <span class="chip">bash 3.2+</span><span class="chip">ssh</span><span class="chip">rsync 3.1+</span><span class="chip">mysql + mysqldump</span><span class="chip">gzip</span>
+          <span class="chip wp">wp (WordPress)</span><span class="chip wp">php (Laravel)</span>
+          <span class="chip optin">optional: pv · curl · unzip · sshpass</span>
+        </div>
+        <p class="tech tech-block">Debian/Ubuntu: <code>apt-get install -y rsync mysql-client pv sshpass unzip curl</code>, and WP-CLI from <a href="https://wp-cli.org/">wp-cli.org</a>. The preflight names anything missing; nothing is installed for you.</p>
+      </div></div>
+
+      <div class="setup-step"><div class="n">2</div><div class="body">
+        <h3>Clone and create your .env</h3>
+        <pre class="code"><button class="copy" type="button">Copy</button><code>git clone https://github.com/bryanlittlefield/universal-migrate-site-script.git
+cd universal-migrate-site-script
+cp .env.example .env</code></pre>
+        <p><code>.env</code> is git-ignored. Quote values with single quotes so passwords with special characters survive. An <code>.env</code> from the original migrate-site-script works unchanged.</p>
+      </div></div>
+
+      <div class="setup-step"><div class="n">3</div><div class="body">
+        <h3>Fill in the essentials</h3>
+        <p>Everything else has a sensible default. The full list with comments is in <code>.env.example</code>.</p>
+        <div class="kv">
+          <div>
+            <h4>Remote (source)</h4>
+            <table>
+              <tr><td>remote_ssh_host</td><td>IP or hostname</td></tr>
+              <tr><td>remote_ssh_user</td><td>SSH user</td></tr>
+              <tr><td>remote_ssh_key</td><td>path to a private key (or set <code>remote_ssh_pass</code>)</td></tr>
+              <tr><td>remote_ssh_web_root</td><td>e.g. <code>/var/www/html</code></td></tr>
+              <tr><td>remote_domain</td><td>e.g. <code>www.example.com</code></td></tr>
+              <tr><td>export_db_name<br>export_db_user<br>export_db_pass</td><td>remote database credentials</td></tr>
+              <tr class="tech"><td>export_db_host</td><td>DB host as seen <em>from the remote server</em>; default <code>127.0.0.1</code></td></tr>
+              <tr class="tech"><td>db_export_method</td><td><code>tunnel</code> (default) or <code>remote</code></td></tr>
+            </table>
+          </div>
+          <div>
+            <h4>Local (destination)</h4>
+            <table>
+              <tr><td>local_web_root</td><td>absolute path to sync into</td></tr>
+              <tr><td>local_domain</td><td>e.g. <code>example.local</code></td></tr>
+              <tr><td>local_scheme</td><td><code>http</code> or <code>https</code></td></tr>
+              <tr><td>import_db_name<br>import_db_user<br>import_db_pass</td><td>local database credentials (created if missing)</td></tr>
+              <tr><td>platform</td><td><code>auto</code>, <code>wordpress</code> or <code>laravel</code></td></tr>
+              <tr class="tech"><td>sync_mode / rsync_mode</td><td><code>full</code>·<code>code</code>·<code>uploads</code> / <code>sync</code>·<code>ignore-existing</code>·<code>mirror</code></td></tr>
+              <tr class="tech"><td>skip_* / run_*</td><td>per-step toggles, same names as the old script</td></tr>
+            </table>
+          </div>
+        </div>
+      </div></div>
+
+      <div class="setup-step"><div class="n">4</div><div class="body">
+        <h3>Run the preflight</h3>
+        <pre class="code"><button class="copy" type="button">Copy</button><code>./migrate.sh --check</code></pre>
+        <p>Verifies the tools, logs in over SSH, checks the remote web root, connects to both databases and compares disk space. It changes nothing, so run it as often as you like.</p>
+        <div class="tech tech-block"><div class="eyebrow">What it runs</div><ul>
+          <li><code>ssh -n … 'echo ok'</code> and <code>test -d &lt;remote_ssh_web_root&gt;</code></li>
+          <li>Remote DB: opens the tunnel (or runs <code>mysql</code> on the remote) and executes <code>SELECT 1</code>; local DB: <code>SELECT 1</code> then <code>SHOW DATABASES LIKE</code></li>
+          <li><code>du -sk</code> of the remote root against <code>df -Pk</code> of the local target (only in <code>--check</code> or with <code>preflight_disk_check=true</code>)</li>
+        </ul></div>
+      </div></div>
+
+      <div class="setup-step"><div class="n">5</div><div class="body">
+        <h3>Migrate</h3>
+        <pre class="code"><button class="copy" type="button">Copy</button><code>./migrate.sh            <span class="c"># interactive: confirm each step</span>
+./migrate.sh --dry-run  <span class="c"># rehearse: prints every command, changes nothing</span>
+./migrate.sh --yes      <span class="c"># unattended</span></code></pre>
+        <p>When it finishes, read the report. It is printed on screen and saved to <code>logs/migrate-report-&lt;timestamp&gt;.txt</code> with one line per step, its real result and how long it took. The full output is in <code>logs/migrate-&lt;timestamp&gt;.log</code>.</p>
+      </div></div>
+
+    </div>
+  </div>
+</section>
+
+<section id="database">
+  <div class="wrap stack">
+    <div class="section-head">
+      <span class="eyebrow">Database</span>
+      <h2>Where the database comes from</h2>
+      <p>Two ways to get the dump, chosen with <code>db_export_method</code>. Both stream the SQL through the same filter and land it in <code>dumps/</code>. The remote password never appears on a command line.</p>
+    </div>
+
+    <div class="two-col">
+      <figure>
+        <div class="frame">
+          <svg viewBox="0 0 440 270" role="img" aria-label="Tunnel method: the local mysqldump connects to a free local port that SSH forwards to the remote database">
+            <defs>
+              <marker id="arr4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker>
+              <marker id="arr4a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker>
+            </defs>
+            <text x="110" y="22" text-anchor="middle" class="eyebrow-svg label">THIS MACHINE</text>
+            <text x="330" y="22" text-anchor="middle" class="label">REMOTE SERVER</text>
+            <line class="lane" x1="220" y1="32" x2="220" y2="250"/>
+            <text x="220" y="264" text-anchor="middle" class="label">SSH</text>
+
+            <rect class="node hot" x="40" y="50" width="140" height="44" rx="8"/>
+            <text x="110" y="77" text-anchor="middle" class="title">mysqldump (local)</text>
+            <line class="edge" x1="110" y1="94" x2="110" y2="128" marker-end="url(#arr4)"/>
+            <text x="118" y="116" class="label">connects to</text>
+
+            <rect class="node" x="40" y="130" width="140" height="44" rx="8"/>
+            <text x="110" y="149" text-anchor="middle">127.0.0.1:&lt;free port&gt;</text>
+            <text x="110" y="166" text-anchor="middle" class="tech">find_free_port 33060+</text>
+
+            <line class="edge accent dashed" x1="180" y1="152" x2="258" y2="152" marker-end="url(#arr4a)"/>
+            <text x="220" y="144" text-anchor="middle" class="label">ssh -L</text>
+
+            <rect class="node" x="260" y="130" width="140" height="44" rx="8"/>
+            <text x="330" y="149" text-anchor="middle">database :3306</text>
+            <text x="330" y="166" text-anchor="middle" class="mono">export_db_host</text>
+
+            <line class="edge" x1="60" y1="94" x2="60" y2="208" marker-end="url(#arr4)"/>
+            <text x="68" y="196" class="label">SQL → filter</text>
+            <rect class="node" x="40" y="210" width="140" height="36" rx="8"/>
+            <text x="110" y="233" text-anchor="middle" class="mono">dumps/&lt;db&gt;-&lt;ts&gt;.sql</text>
+
+            <text x="330" y="92" text-anchor="middle" class="tech">ssh -f -N -M -S sock -o ExitOnForwardFailure=yes</text>
+            <text x="330" y="106" text-anchor="middle" class="tech">closed with ssh -S sock -O exit</text>
+            <text x="330" y="226" text-anchor="middle" class="tech">password via --defaults-extra-file (0600)</text>
+          </svg>
+        </div>
+        <figcaption><strong>tunnel</strong> (default): your local mysqldump does the work through an SSH port forward. Use it when the remote has no mysqldump, or when the database lives on a separate host the web server can reach.</figcaption>
+      </figure>
+
+      <figure>
+        <div class="frame">
+          <svg viewBox="0 0 440 270" role="img" aria-label="Remote method: mysqldump runs on the remote server, its gzip-compressed output streams back over SSH and is filtered locally">
+            <defs>
+              <marker id="arr5" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker>
+              <marker id="arr5a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker>
+            </defs>
+            <text x="110" y="22" text-anchor="middle" class="label">THIS MACHINE</text>
+            <text x="330" y="22" text-anchor="middle" class="label">REMOTE SERVER</text>
+            <line class="lane" x1="220" y1="32" x2="220" y2="250"/>
+            <text x="220" y="264" text-anchor="middle" class="label">SSH</text>
+
+            <rect class="node" x="40" y="50" width="140" height="44" rx="8"/>
+            <text x="110" y="77" text-anchor="middle" class="title">ssh</text>
+            <line class="edge" x1="180" y1="72" x2="258" y2="72" marker-end="url(#arr5)"/>
+            <text x="220" y="64" text-anchor="middle" class="label">runs</text>
+
+            <rect class="node hot" x="260" y="50" width="140" height="44" rx="8"/>
+            <text x="330" y="77" text-anchor="middle" class="title">mysqldump | gzip</text>
+            <text x="330" y="112" text-anchor="middle" class="tech">MYSQL_PWD="$(cat)" from stdin</text>
+            <text x="330" y="126" text-anchor="middle" class="tech">no temp files on the remote</text>
+
+            <path class="edge accent" d="M330 94 V152 H182" marker-end="url(#arr5a)"/>
+            <text x="220" y="144" text-anchor="middle" class="label">stdout stream</text>
+
+            <rect class="node" x="40" y="130" width="140" height="44" rx="8"/>
+            <text x="110" y="149" text-anchor="middle">gunzip → filter</text>
+            <text x="110" y="166" text-anchor="middle" class="tech">sed: DEFINER · sandbox · collation</text>
+            <line class="edge" x1="110" y1="174" x2="110" y2="208" marker-end="url(#arr5)"/>
+
+            <rect class="node" x="40" y="210" width="140" height="36" rx="8"/>
+            <text x="110" y="233" text-anchor="middle" class="mono">dumps/&lt;db&gt;-&lt;ts&gt;.sql</text>
+            <text x="330" y="226" text-anchor="middle" class="tech">gzip only if both ends have it</text>
+          </svg>
+        </div>
+        <figcaption><strong>remote</strong>: mysqldump runs on the server and the compressed output streams straight back. Usually the fastest option for large databases.</figcaption>
+      </figure>
+    </div>
+
+    <h3>Then, locally</h3>
+    <div class="seq" aria-label="Import sequence">
+      <div class="s"><strong>List remote tables</strong><span>expands wildcard excludes, remembers the count</span></div>
+      <div class="s"><strong>Export</strong><span>one pass, or structure + data when tables are excluded</span></div>
+      <div class="s guard"><strong>Back up local DB</strong><span>dumps/&lt;db&gt;-backup-&lt;ts&gt;.sql.gz</span></div>
+      <div class="s"><strong>Drop local tables</strong><span>and views, from information_schema</span></div>
+      <div class="s"><strong>Import</strong><span>bulk settings on, progress bar, COMMIT at the end</span></div>
+      <div class="s guard"><strong>Compare counts</strong><span>remote vs local, reported in verify</span></div>
+    </div>
+
+    <div class="tech tech-block"><div class="eyebrow">Client flags are detected, not guessed</div><ul>
+      <li>The right SSL flag comes from <code>mysql --version</code> / <code>mysqldump --version</code> of whichever client is doing the work: MariaDB and MySQL 5.x clients get <code>--skip-ssl</code> on loopback connections, MySQL 8 clients get <code>--ssl-mode=DISABLED</code> on loopback and <code>PREFERRED</code> elsewhere. Override with <code>export_db_ssl_flag</code> / <code>import_db_ssl_flag</code>.</li>
+      <li>MySQL 8 mysqldump against an older server gets <code>--column-statistics=0</code> automatically.</li>
+      <li><code>db_fix_collation=auto</code> rewrites <code>utf8mb4_0900_ai_ci → utf8mb4_unicode_ci</code> (and the <code>_as_cs</code>, <code>_bin</code> variants) when <code>SELECT VERSION()</code> on the local server says MariaDB or MySQL &lt; 8.</li>
+      <li>The import prefix is session-level only; no <code>SET GLOBAL</code>, so no SUPER privilege is needed.</li>
+    </ul></div>
+  </div>
+</section>
+
+<section id="files">
+  <div class="wrap stack">
+    <div class="section-head">
+      <span class="eyebrow">Files</span>
+      <h2>What gets copied</h2>
+      <p>Two settings control the file sync. <code>sync_mode</code> decides which part of the site, <code>rsync_mode</code> decides how existing local files are treated.</p>
+    </div>
+    <div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>Setting</th><th>Value</th><th>Effect</th></tr></thead>
+      <tbody>
+        <tr><td rowspan="3"><code>sync_mode</code></td><td><code>full</code> (default)</td><td>The whole web root minus the exclude list.</td></tr>
+        <tr><td><code>code</code></td><td>Everything except the uploads directory. Handy for a quick code refresh on a big media library.</td></tr>
+        <tr><td><code>uploads</code></td><td>Only the uploads directory (<code>wp-content/uploads</code> or <code>storage/app/public</code>, or <code>uploads_rel_path</code>).</td></tr>
+        <tr><td rowspan="3"><code>rsync_mode</code></td><td><code>sync</code> (default)</td><td>Transfer new and changed files. Local extras are kept.</td></tr>
+        <tr><td><code>ignore-existing</code></td><td>Only files that do not exist locally yet. This is what the original script always did.</td></tr>
+        <tr><td><code>mirror</code></td><td>Like <code>sync</code>, and deletes local files that are not on the remote (<code>--delete</code>).</td></tr>
+      </tbody>
+    </table></div>
+    <p>Always excluded: <code>.git/</code>, <code>*.sql</code>, <code>*.sql.gz</code>, the local <code>.maintenance</code> file, and everything in <code>config/rsync-exclude.txt</code> (logs, archives, OS junk, cache and backup-plugin directories). Patterns there follow rsync's filter rules; a leading <code>/</code> anchors at the web root.</p>
+    <div class="tech tech-block"><div class="eyebrow">Also available</div><ul>
+      <li><code>rsync_bwlimit</code> (KB/s) and <code>rsync_extra_opts</code> (appended verbatim, e.g. <code>--chmod=D755,F644</code>).</li>
+      <li><code>--dry-run</code> passes <code>--dry-run</code> to rsync, so the per-file log still shows what would transfer.</li>
+      <li>The <code>uploads</code> mode is built from nested include rules (<code>--include=/wp-content/ --include=/wp-content/uploads/ --include=/wp-content/uploads/** --exclude=*</code>) placed after the exclude list, so excluded subfolders stay excluded.</li>
+    </ul></div>
+  </div>
+</section>
+
+<section id="cli">
+  <div class="wrap stack">
+    <div class="section-head">
+      <span class="eyebrow">Command line</span>
+      <h2>Run it your way</h2>
+      <p>Everything on the command line has an <code>.env</code> equivalent, so wrapper scripts and CI jobs can drive it without arguments.</p>
+    </div>
+    <div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>Command</th><th>When you want to</th></tr></thead>
+      <tbody>
+        <tr><td><code>./migrate.sh --check</code></td><td>See if everything is reachable before touching anything.</td></tr>
+        <tr><td><code>./migrate.sh --dry-run</code></td><td>Rehearse: SSH, table listing and an rsync dry run happen; every other command is printed with secrets masked.</td></tr>
+        <tr><td><code>./migrate.sh --only migrate-db</code></td><td>Refresh just the database (or any one step).</td></tr>
+        <tr><td><code>./migrate.sh --yes --skip sync-files</code></td><td>Unattended run without the file sync.</td></tr>
+        <tr><td><code>./migrate.sh --yes --with clear-web-root</code></td><td>Unattended full wipe and sync. Opt-in steps need <code>--with</code>, <code>--only</code> or <code>run_&lt;step&gt;='true'</code>.</td></tr>
+        <tr><td><code>./migrate.sh --env sites/client-a.env</code></td><td>Keep one checkout and several site configs.</td></tr>
+        <tr><td><code>./migrate.sh --plain</code></td><td>No colours or emoji, for CI logs. Same as <code>plain_output='true'</code>.</td></tr>
+        <tr><td><code>./migrate.sh --list-steps</code></td><td>Print the step ids, their mode and platforms.</td></tr>
+      </tbody>
+    </table></div>
+    <p>Without a terminal and without <code>--yes</code> (cron, a CI job without a TTY) the script refuses to start rather than guess. A failing step stops the run and exits non-zero unless <code>continue_on_error='true'</code>.</p>
+    <div class="tech tech-block"><div class="eyebrow">Flags and their .env twins</div><ul>
+      <li><code>--yes</code> ↔ <code>auto_confirm</code>, <code>--plain</code> ↔ <code>plain_output</code>, <code>--skip &lt;id&gt;</code> ↔ <code>skip_&lt;id&gt;='true'</code> (legacy names kept: <code>skip_file_sync</code>, <code>skip_db_import</code>, <code>skip_app_config</code>, <code>skip_cache_refresh</code>, <code>skip_maintenance</code>), <code>--with &lt;id&gt;</code> ↔ <code>run_&lt;id&gt;='true'</code>, <code>skip_migrate_website='true'</code> exits immediately for wrapper scripts.</li>
+      <li>Exit codes: 0 all good, 1 a step failed or the configuration is invalid, 2 bad command-line option, 130 interrupted.</li>
+    </ul></div>
+  </div>
+</section>
+
+<section id="safety">
+  <div class="wrap stack">
+    <div class="section-head">
+      <span class="eyebrow">Safety</span>
+      <h2>What protects you</h2>
+      <p>The script replaces a site's files and database, so the guard rails are the point.</p>
+    </div>
+    <div class="grid3">
+      <div class="card"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 3l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg><h3>Preflight first</h3><p>Tools, SSH, remote root, both database logins. If any check fails, the run stops before anything is touched.</p></div>
+      <div class="card"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v12c0 1.7 3.1 3 7 3s7-1.3 7-3V6"/><path d="M5 12c0 1.7 3.1 3 7 3s7-1.3 7-3"/></svg><h3>Local DB backed up</h3><p>Before any table is dropped, the current local database is dumped to <code>dumps/</code>. Turn off with <code>local_db_backup='false'</code>.</p></div>
+      <div class="card"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9l3 3-3 3M12 15h5"/></svg><h3>Dry run</h3><p><code>--dry-run</code> prints every state-changing command, with secrets masked, and runs only the read-only parts.</p></div>
+      <div class="card"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M3 7h18M3 12h18M3 17h18"/><path d="M8 5v4M16 10v4M11 15v4"/></svg><h3>Destructive steps are opt-in</h3><p>Clearing the web root never happens under <code>--yes</code> unless named, refuses dangerous paths, and asks you to type the directory name interactively.</p></div>
+      <div class="card"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><h3>Secrets stay off the command line</h3><p>MySQL passwords go through a mode-600 options file or stdin, SSH passwords through <code>sshpass -e</code>. Nothing shows up in <code>ps</code>.</p></div>
+      <div class="card"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 4h16v16H4z"/><path d="M4 9h16M9 9v11"/></svg><h3>Honest reporting</h3><p>Each step's line in the report reflects its real exit status. A cleanup trap closes the tunnel, removes temp files and warns if maintenance mode was left on.</p></div>
+    </div>
+    <div class="tech tech-block"><div class="eyebrow">Also</div><ul>
+      <li><code>wp-config.php</code> is copied to <code>wp-config.php.bak-&lt;ts&gt;</code> before host-cleanup edits it.</li>
+      <li>SSH host keys use <code>StrictHostKeyChecking=accept-new</code> by default (<code>ssh_strict_host_key</code> accepts <code>yes</code> / <code>no</code> / <code>accept-new</code>).</li>
+      <li>Remote commands run with <code>ssh -n</code> so they can never swallow the script's own stdin.</li>
+    </ul></div>
+  </div>
+</section>
+
+<section id="trouble">
+  <div class="wrap stack">
+    <div class="section-head">
+      <span class="eyebrow">Troubleshooting</span>
+      <h2>When something looks off</h2>
+    </div>
+    <div>
+      <details><summary>SSL connection error, or "TLS/SSL error: self-signed certificate"</summary><p>A MariaDB 11.4+ client talking to a server without certificates. Loopback connections already get <code>--skip-ssl</code>; for other hosts set <code>export_db_ssl_flag='--skip-ssl'</code> (MariaDB client) or <code>'--ssl-mode=DISABLED'</code> (MySQL client).</p></details>
+      <details><summary>Unknown collation: 'utf8mb4_0900_ai_ci'</summary><p>A MySQL 8 dump going into MariaDB or MySQL 5.7. <code>db_fix_collation='auto'</code> handles it when the local server is detected as such; force it with <code>db_fix_collation='true'</code>.</p></details>
+      <details><summary>Unknown table 'COLUMN_STATISTICS' in information_schema</summary><p>MySQL 8 mysqldump against an older server. <code>--column-statistics=0</code> is added automatically for MySQL 8/9 clients; if you overrode the flags, add it back.</p></details>
+      <details><summary>The SSH tunnel never comes up</summary><p>Check the key's permissions (<code>chmod 600</code>) and that the remote allows TCP forwarding (<code>AllowTcpForwarding yes</code> in sshd_config). Switching to <code>db_export_method='remote'</code> avoids the tunnel entirely.</p></details>
+      <details><summary>Bad configuration option: StrictHostKeyChecking=accept-new</summary><p>OpenSSH older than 7.6. Set <code>ssh_strict_host_key='yes'</code> and accept the host key once by hand, or <code>'no'</code>.</p></details>
+      <details><summary>rsync: --info=progress2 unknown option</summary><p>rsync older than 3.1 (the version bundled with macOS, for example). The progress bar is skipped automatically; install a newer rsync for progress output.</p></details>
+      <details><summary>A plugin fatals during wp search-replace</summary><p>Set <code>wp_cli_extra_opts='--skip-plugins --skip-themes'</code>.</p></details>
+      <details><summary>The HTTP check warns but the site works in the browser</summary><p>The local domain probably does not resolve from the machine running the script (a container, for instance). It is a warning, not a failure; set <code>verify_http='false'</code> to silence it.</p></details>
+    </div>
+
+    <div class="stack">
+      <h3>Coming from migrate-site-script?</h3>
+      <div class="tbl-wrap"><table class="tbl">
+        <thead><tr><th>Before</th><th>Now</th></tr></thead>
+        <tbody>
+          <tr><td><code>bash migrate-website.sh</code></td><td><code>./migrate.sh</code>; your <code>.env</code> works as is</td></tr>
+          <tr><td>Prompts phrased "Skip X? (y/n)"</td><td>Every prompt is "Run step 'X'? [Y/n]"; <code>y</code> always means run</td></tr>
+          <tr><td><code>db_ssh_tunnels='true'</code> / <code>'false'</code></td><td>Still works; maps to <code>db_export_method</code> <code>tunnel</code> / <code>remote</code></td></tr>
+          <tr><td>Exclude lists in the repo root</td><td>Moved to <code>config/</code>; old paths fall back automatically</td></tr>
+          <tr><td>rsync always <code>--ignore-existing</code></td><td><code>rsync_mode='sync'</code> by default; set <code>'ignore-existing'</code> for the old behaviour</td></tr>
+          <tr><td><code>apt install</code> on every run</td><td>Preflight reports what is missing</td></tr>
+          <tr><td>Report showed ✅ for every step</td><td>Report shows the real result</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+
+    <div class="tech tech-block"><div class="eyebrow">Extending it</div><ul>
+      <li>Layout: <code>migrate.sh</code> (CLI, step registry, main), <code>lib/</code> (util, ui, env, ssh, db, wp, runner, preflight), <code>steps/</code> (one function per step), <code>config/</code> (lists), <code>tests/</code> (bats suites and stub binaries).</li>
+      <li>New step: write <code>step_&lt;name&gt;()</code> in <code>steps/&lt;name&gt;.sh</code>, source it in <code>migrate.sh</code>, add a <code>register_step</code> line. Use <code>run_cmd</code> for state changes so <code>--dry-run</code> works, and <code>return 1</code> on failure.</li>
+      <li>Checks: <code>shellcheck -x migrate.sh</code> and <code>bats tests</code> (54 tests, end-to-end against stubbed ssh/rsync/mysql/wp/php). CI runs both on Ubuntu and macOS.</li>
+    </ul></div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>universal-migrate-site-script · <a href="https://github.com/bryanlittlefield/universal-migrate-site-script">source</a> · <a href="https://github.com/bryanlittlefield/universal-migrate-site-script/blob/main/README.md">README</a> · <a href="https://github.com/bryanlittlefield/universal-migrate-site-script/blob/main/CHANGELOG.md">changelog</a></span>
+    <span>Rewritten from <a href="https://github.com/builtmighty/migrate-site-script">builtmighty/migrate-site-script</a></span>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var root = document.documentElement;
+  var store = {
+    get: function (k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+    set: function (k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  };
+
+  // Technical details switch
+  var toggle = document.getElementById('techToggle');
+  function applyMode(on) {
+    if (on) { root.setAttribute('data-mode', 'tech'); } else { root.removeAttribute('data-mode'); }
+    toggle.checked = on;
+  }
+  applyMode(store.get('ums-mode') === 'tech' || location.hash === '#tech');
+  toggle.addEventListener('change', function () {
+    applyMode(toggle.checked);
+    store.set('ums-mode', toggle.checked ? 'tech' : 'simple');
+  });
+
+  // Theme: auto -> light -> dark
+  var themeBtn = document.getElementById('themeBtn');
+  var themes = ['auto', 'light', 'dark'];
+  function applyTheme(t) {
+    if (t === 'auto') { root.removeAttribute('data-theme'); } else { root.setAttribute('data-theme', t); }
+    themeBtn.textContent = 'Theme: ' + t;
+  }
+  var current = store.get('ums-theme') || 'auto';
+  if (themes.indexOf(current) < 0) { current = 'auto'; }
+  applyTheme(current);
+  themeBtn.addEventListener('click', function () {
+    current = themes[(themes.indexOf(current) + 1) % themes.length];
+    applyTheme(current);
+    store.set('ums-theme', current);
+  });
+
+  // Copy buttons
+  Array.prototype.forEach.call(document.querySelectorAll('pre.code .copy'), function (btn) {
+    btn.addEventListener('click', function () {
+      var code = btn.parentNode.querySelector('code');
+      var text = code.textContent.replace(/[ \t]+#.*$/gm, '').replace(/\n{2,}/g, '\n').trim();
+      function done() { btn.textContent = 'Copied'; btn.classList.add('done'); setTimeout(function () { btn.textContent = 'Copy'; btn.classList.remove('done'); }, 1500); }
+      function fallback() {
+        var range = document.createRange(); range.selectNodeContents(code);
+        var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+        btn.textContent = 'Select + copy';
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done, fallback);
+      } else { fallback(); }
+    });
+  });
+})();
+</script>
+</body>
+</html>
