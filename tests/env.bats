@@ -33,6 +33,14 @@ teardown() { rm -rf "$T"; }
   [ "$rsync_mode" = mirror ]
 }
 
+@test "normalize_env expands a leading ~ in remote_ssh_key" {
+  remote_ssh_key='~/.ssh/dev_id_rsa'
+  apply_env_defaults; normalize_env
+  [ "$remote_ssh_key" = "$HOME/.ssh/dev_id_rsa" ]
+  remote_ssh_key='/abs/key'; normalize_env
+  [ "$remote_ssh_key" = "/abs/key" ]
+}
+
 @test "validate_env rejects bad values and a missing web root" {
   apply_env_defaults; normalize_env
   run validate_env

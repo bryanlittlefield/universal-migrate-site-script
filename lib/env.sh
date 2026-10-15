@@ -79,6 +79,8 @@ apply_env_defaults() {
 }
 
 normalize_env() {
+  # A quoted '~/.ssh/key' is not expanded by the shell; do it here.
+  remote_ssh_key=${remote_ssh_key/#\~/$HOME}
   local_web_root=$(normalize_dir "$local_web_root")
   remote_ssh_web_root=$(normalize_dir "$remote_ssh_web_root")
   remote_domain=$(normalize_domain "$remote_domain")
