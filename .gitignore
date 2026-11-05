@@ -21,3 +21,10 @@ Thumbs.db
 *~
 .vscode/
 .idea/
+
+# GUI: per-migration env files and hook scripts (credentials, local commands)
+sites/*
+!sites/.gitkeep
+hooks/*
+!hooks/.gitkeep
+__pycache__/

@@ -10,6 +10,7 @@ It is a ground-up rewrite of [builtmighty/migrate-site-script](https://github.co
 ./migrate.sh --check        # verify SSH, DB access, tools and disk space
 ./migrate.sh                # interactive: confirm each step
 ./migrate.sh --yes --plain  # unattended, CI-friendly output
+./gui.sh                    # or do all of it from a local web GUI
 ```
 
 ## Requirements
@@ -36,7 +37,27 @@ $EDITOR .env            # remote server, remote DB, local web root, local DB, do
 ./migrate.sh            # run it
 ```
 
-Every run writes `logs/migrate-<timestamp>.log` (everything), `logs/rsync-<timestamp>.log` (every transferred file) and `logs/migrate-report-<timestamp>.txt` (one line per step with real pass/fail and timings).
+Every run writes `logs/migrate-<timestamp>.log` (everything), `logs/rsync-<timestamp>.log` (every transferred file), `logs/migrate-report-<timestamp>.txt` (one line per step with real pass/fail and timings) and `logs/migrate-<timestamp>.events` (tab-separated, machine-readable progress: start, plan, checks, step start/end/skip, end; the GUI's run history).
+
+## GUI
+
+```bash
+./gui.sh                    # opens http://127.0.0.1:8765/#token=… in your browser
+./gui.sh --port 9000 --no-browser
+```
+
+A local web interface for everything above. It needs `python3` 3.8+ and nothing else: no packages, no build step, nothing hosted. The page is plain HTML/JS served by a single standard-library Python file, [gui/server.py](gui/server.py).
+
+- **Setup wizard** for the env file: remote server, remote database, local site, local database, WordPress/Laravel and behaviour settings, then a review page. Every field has an ⓘ tooltip with the `.env` key and the default. Visual helpers include a live diagram of where files and the database go, a preview of the URL rewrite, SSH key suggestions from `~/.ssh` with permission warnings, and warnings for risky choices (mirror mode, backup off).
+- **Connection tests** before you run: SSH login + remote web root, remote database (through the tunnel or on the server, as configured), local database, local web root and local tools. Tests use the values on screen, saved or not, and show a *likely cause* for common failures.
+- **Several migrations**: `.env` is *default*, the others are `sites/<name>.env` (create, copy, delete). Each has its own steps, hooks and run history, and you can come back to any of them later.
+- **Steps & hooks**: turn steps on or off (written as `skip_*` / `run_*`) and edit the **before-run** and **after-run** hooks (see below) with templates.
+- **Runs**: migration, dry run or check, with per-run step selection and the equivalent command line. A live page shows a progress bar, a timeline with per-step timers, rsync's file count, the streaming console and a Stop button (Ctrl-C semantics: the cleanup trap still runs).
+- **History and logs**: every run of a migration, terminal runs included, with the full log, report, rsync file list and events. A log-folder browser with line filtering and downloads covers older files.
+
+It binds to 127.0.0.1 only and requires the per-launch token from the printed URL on every API call. Requests with a foreign `Host` header are rejected (DNS rebinding). For a remote box, tunnel it: `ssh -L 8765:127.0.0.1:8765 you@box`. The full user guide is built into the GUI (**User guide** in the sidebar).
+
+The GUI only writes env files and calls `migrate.sh`. Saving changes only the lines that changed, so comments and hand edits survive, and everything it does can be repeated from the command line.
 
 ## Documentation site
 
@@ -60,6 +81,7 @@ Live copy: https://bryanlittlefield.github.io/universal-migrate-site-script/
 
 | Step id | Default | Platform | What it does |
 |---|---|---|---|
+| `before-run` | run when set | all | Runs `before_run_hook` (see *Hooks*). Skipped when it is empty. |
 | `clear-web-root` | **opt-in** | all | Deletes everything inside `local_web_root` (dotfiles included). Refuses `/`, top-level dirs, `$HOME` and the script's own directory. Interactive runs must type the directory name. |
 | `maintenance-on` | run | WP, Laravel | Writes a non-expiring `.maintenance` file / `artisan down`. Skipped automatically if the web root was cleared. |
 | `sync-files` | run | all | `rsync` from the remote web root, honouring `config/rsync-exclude.txt`, `sync_mode` and `rsync_mode`. rsync exit 23/24 (vanished or unreadable files) is a warning, not a failure. |
@@ -71,6 +93,7 @@ Live copy: https://bryanlittlefield.github.io/universal-migrate-site-script/
 | `cache-refresh` | run | WP, Laravel | `wp rewrite flush`, `wp cache flush`, `wp transient delete --all` (+ Kinsta purge if available) / `artisan optimize:clear`. |
 | `verify` | run | all | Site loads (`wp core version` / `artisan --version`), `home` option contains the local domain, remote vs local table count, HTTP status of the local domain. Only hard failures fail the step. |
 | `maintenance-off` | run | WP, Laravel | Removes `.maintenance` / `artisan up`. If the run aborts with maintenance still on, the script says so on exit. |
+| `after-run` | run when set | all | Runs `after_run_hook`. Like every step, it is not reached when an earlier step fails and `continue_on_error=false`. |
 
 `./migrate.sh --list-steps` prints this list.
 
@@ -81,6 +104,8 @@ Live copy: https://bryanlittlefield.github.io/universal-migrate-site-script/
 -y, --yes           Unattended: run every enabled step without prompting
 -n, --dry-run       Show what would happen; change no files, DB or config
 -c, --check         Run the preflight checks (incl. disk space) and exit
+-t, --test IDS      Run only these checks and exit, without a log:
+                    tools, local-root, ssh, remote-db, local-db, disk
     --skip IDS      Comma-separated step ids to skip (repeatable)
     --only IDS      Run only these step ids (repeatable)
     --with IDS      Enable opt-in steps, e.g. clear-web-root, kinsta-plugins
@@ -199,6 +224,20 @@ All settings live in `.env`; see [.env.example](.env.example) for every key with
 | `skip_clear_web_root`, `skip_maintenance`, `skip_file_sync`, `skip_db_import`, `skip_app_config`, `skip_host_cleanup`, `skip_kinsta_plugins`, `skip_local_hardening`, `skip_cache_refresh`, `skip_verify` | `false` | Skip a step |
 | `run_clear_web_root`, `run_kinsta_plugins` | `false` | Enable an opt-in step |
 
+### Hooks
+
+| Key | Default | Meaning |
+|---|---|---|
+| `before_run_hook` | | Runs as the first step |
+| `after_run_hook` | | Runs as the last step |
+
+Each is either a script path (absolute or relative to the script folder, run with `bash`) or a command line. It runs in `local_web_root` (the script folder until that exists) with stdin closed and these variables set: `UMS_HOOK`, `UMS_ENV_FILE`, `UMS_PLATFORM`, `UMS_LOCAL_WEB_ROOT`, `UMS_LOCAL_URL`, `UMS_REMOTE_URL`, `UMS_IMPORT_DB_NAME`, `UMS_LOG_FILE`, `UMS_RUN_TAG`, `UMS_DRY_RUN`, `UMS_FAILED_STEPS`. A non-zero exit fails the step. Under `--dry-run` the hook is printed, not run. The GUI stores hook scripts in `hooks/<migration>/` (git-ignored).
+
+```bash
+before_run_hook='docker compose up -d'
+after_run_hook='hooks/default/after-run.sh'
+```
+
 ## Database export methods
 
 **`tunnel`** (default): the script opens `ssh -L` from a free local port to `export_db_host:export_db_port` *as seen from the remote server* and runs the **local** `mysqldump` through it. Use this when the remote has no `mysqldump`, or when the DB lives on a separate host the web server can reach (set `export_db_host` to that host).
@@ -271,8 +310,10 @@ Copy your old `.env` over; it works as is. Mapping of behaviours:
 ```bash
 shellcheck -x migrate.sh                                  # lints every sourced file too
 shellcheck -s bash tests/stubs/bin/* tests/test_helper.bash
-bats tests                                                # 54 tests: unit + end-to-end against stubbed ssh/rsync/mysql/wp/php
+shellcheck gui.sh
+bats tests                                                # unit + end-to-end against stubbed ssh/rsync/mysql/wp/php
 bats tests/e2e.bats                                       # one suite
+python3 -m unittest discover -s tests -p 'test_gui.py'    # GUI server: env writer, events parser, HTTP API
 ```
 
 The end-to-end tests run `migrate.sh --yes --plain` against fake binaries in `tests/stubs/bin` that log every call to `$STUB_LOG`; the tunnel test fakes a listener with `python3`. Nothing talks to a real server or database.
@@ -289,7 +330,12 @@ lib/db.sh           mysql client flags, dump filter, local/remote DB helpers
 lib/wp.sh           WP-CLI wrappers
 lib/runner.sh       step runner, skip logic, report
 lib/preflight.sh    checks that run before anything destructive
-steps/*.sh          one function per step
+steps/*.sh          one function per step (hooks.sh: before-run / after-run)
+gui.sh              starts the GUI
+gui/server.py       GUI backend: stdlib HTTP server, env read/write, runs, history
+gui/schema.json     GUI field labels, tooltips, wizard sections, step help
+gui/static/         GUI page (index.html, app.js, app.css), no build step
+sites/, hooks/      GUI-created env files and hook scripts (git-ignored)
 config/*.txt        editable lists
 tests/              bats suites, stub binaries in tests/stubs/bin, fixtures
 docs/               the GitHub Pages guide (index.html, no build step)

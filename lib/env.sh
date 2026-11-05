@@ -70,6 +70,8 @@ apply_env_defaults() {
   : "${auto_confirm:=false}" "${continue_on_error:=false}" "${plain_output:=false}"
   : "${log_dir:=logs}" "${dump_dir:=dumps}" "${preflight_disk_check:=false}"
   : "${verify_http:=true}" "${verify_db_check:=false}"
+  # Hooks
+  : "${before_run_hook:=}" "${after_run_hook:=}"
   # Step toggles
   : "${skip_migrate_website:=false}" "${skip_clear_web_root:=false}" "${skip_maintenance:=false}"
   : "${skip_file_sync:=false}" "${skip_db_import:=false}" "${skip_app_config:=false}"
@@ -97,7 +99,8 @@ normalize_env() {
 
 validate_env() {
   local bad=0
-  if [[ -z $local_web_root ]]; then error "local_web_root is required"; bad=1; fi
+  # --test can check SSH or a database before the local side is filled in.
+  if [[ -z $local_web_root && -z ${TEST_TARGETS:-} ]]; then error "local_web_root is required"; bad=1; fi
   case $platform in wordpress|laravel|auto) ;; *) error "platform must be wordpress, laravel or auto (got '$platform')"; bad=1 ;; esac
   case $db_export_method in tunnel|remote) ;; *) error "db_export_method must be tunnel or remote (got '$db_export_method')"; bad=1 ;; esac
   case $sync_mode in full|code|uploads) ;; *) error "sync_mode must be full, code or uploads (got '$sync_mode')"; bad=1 ;; esac

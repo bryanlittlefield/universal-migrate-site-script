@@ -12,7 +12,7 @@
 set -o pipefail
 set -u
 
-VERSION="1.1.0"
+VERSION="1.2.0"
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
 
 # shellcheck source=lib/util.sh
@@ -31,6 +31,8 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
 . "$SCRIPT_DIR/lib/runner.sh"
 # shellcheck source=lib/preflight.sh
 . "$SCRIPT_DIR/lib/preflight.sh"
+# shellcheck source=steps/hooks.sh
+. "$SCRIPT_DIR/steps/hooks.sh"
 # shellcheck source=steps/clear-web-root.sh
 . "$SCRIPT_DIR/steps/clear-web-root.sh"
 # shellcheck source=steps/maintenance.sh
@@ -63,6 +65,8 @@ CLI_AUTO=false
 SKIP_STEPS=""
 ONLY_STEPS=""
 WITH_STEPS=""
+TEST_TARGETS=""
+ORIG_ARGS=""
 RUN_START=$SECONDS
 RUN_TAG=""
 TMP_DIR=""
@@ -84,6 +88,8 @@ Options:
   -y, --yes           Unattended: run every enabled step without prompting
   -n, --dry-run       Show what would happen; change no files, DB or config
   -c, --check         Run the preflight checks (incl. disk space) and exit
+  -t, --test IDS      Run only these checks and exit, without writing a log:
+                      tools, local-root, ssh, remote-db, local-db, disk
       --skip IDS      Comma-separated step ids to skip (repeatable)
       --only IDS      Run only these step ids (repeatable)
       --with IDS      Enable opt-in steps, e.g. clear-web-root, kinsta-plugins
@@ -104,6 +110,8 @@ parse_args() {
       -y|--yes) CLI_AUTO=true; shift ;;
       -n|--dry-run) DRY_RUN=true; shift ;;
       -c|--check) CHECK_ONLY=true; shift ;;
+      -t|--test) [[ $# -ge 2 ]] || die "--test needs check ids"; TEST_TARGETS="${TEST_TARGETS:+$TEST_TARGETS,}$2"; shift 2 ;;
+      --test=*) TEST_TARGETS="${TEST_TARGETS:+$TEST_TARGETS,}${1#*=}"; shift ;;
       --skip) [[ $# -ge 2 ]] || die "--skip needs step ids"; SKIP_STEPS="${SKIP_STEPS:+$SKIP_STEPS,}$2"; shift 2 ;;
       --skip=*) SKIP_STEPS="${SKIP_STEPS:+$SKIP_STEPS,}${1#*=}"; shift ;;
       --only) [[ $# -ge 2 ]] || die "--only needs step ids"; ONLY_STEPS="${ONLY_STEPS:+$ONLY_STEPS,}$2"; shift 2 ;;
@@ -122,6 +130,7 @@ parse_args() {
 
 register_steps() {
   #             id               title                                        function              platforms          default
+  register_step before-run      "Run the before-run hook"                     step_before_run       all                y "Your own command or script (before_run_hook), before anything else"
   register_step clear-web-root  "Clear local web root"                        step_clear_web_root   all                n "Delete everything inside local_web_root before a full sync"
   register_step maintenance-on  "Enable maintenance mode (local site)"        step_maintenance_on   wordpress,laravel  y "Write .maintenance / artisan down so visitors see a notice during the sync"
   register_step sync-files      "Sync files from remote"                      step_sync_files       all                y "rsync the remote web root into local_web_root"
@@ -133,6 +142,7 @@ register_steps() {
   register_step cache-refresh   "Flush caches and permalinks"                 step_cache_refresh    wordpress,laravel  y "wp rewrite/cache flush or artisan optimize:clear"
   register_step verify          "Verify the migrated site"                    step_verify           all                y "Site loads, URLs updated, table counts, HTTP check"
   register_step maintenance-off "Disable maintenance mode (local site)"       step_maintenance_off  wordpress,laravel  y "Remove .maintenance / artisan up"
+  register_step after-run       "Run the after-run hook"                      step_after_run        all                y "Your own command or script (after_run_hook), after everything else"
 }
 
 validate_step_lists() {
@@ -144,6 +154,10 @@ validate_step_lists() {
       step_index "$id" >/dev/null || die "Unknown step id '${id}'. Run ./migrate.sh --list-steps"
     done
   done
+  local IFS=,
+  for id in $TEST_TARGETS; do
+    in_csv "$id" "$PF_TEST_IDS" || die "Unknown check '${id}' for --test. Use: ${PF_TEST_IDS}"
+  done
 }
 
 strip_ansi() {
@@ -154,9 +168,16 @@ strip_ansi() {
 
 setup_logging() {
   mkdir -p "$log_dir" "$dump_dir" || die "Cannot create ${log_dir} or ${dump_dir}"
-  RUN_TAG=$(now_tag)
+  # The GUI picks the tag itself so it knows the file names up front.
+  RUN_TAG=${MIGRATE_RUN_TAG:-}
+  [[ $RUN_TAG =~ ^[A-Za-z0-9_.-]+$ ]] || RUN_TAG=$(now_tag)
   LOG_FILE="$log_dir/migrate-${RUN_TAG}.log"
   REPORT_FILE="$log_dir/migrate-report-${RUN_TAG}.txt"
+  EVENTS_FILE="$log_dir/migrate-${RUN_TAG}.events"
+  local mode=run
+  is_dry_run && mode=dry-run
+  [[ $CHECK_ONLY == true ]] && mode=check
+  emit_event start "$$" "$ENV_FILE" "$LOG_FILE" "$REPORT_FILE" "$mode" "$VERSION" "$ORIG_ARGS"
   # Mirror everything to the log file with colour codes stripped.
   exec > >(tee >(strip_ansi >> "$LOG_FILE")) 2>&1
 }
@@ -168,6 +189,7 @@ cleanup() {
     warn "Maintenance mode is still ACTIVE for ${local_web_root}. Remove .maintenance (WordPress) or run 'php artisan up' (Laravel) when ready."
   fi
   [[ -n $TMP_DIR && -d $TMP_DIR ]] && rm -rf "$TMP_DIR"
+  emit_event end "$rc"
   sleep 0.2 2>/dev/null || true
   exit "$rc"
 }
@@ -194,12 +216,15 @@ print_banner() {
     reason=$(step_skip_reason "${STEP_IDS[$i]}")
     if [[ -n $reason ]]; then state="${C_GREY}skip${C_RESET}"; else state="${C_GREEN}run ${C_RESET}"; fi
     printf '    [%s] %-16s %s%s\n' "$state" "${STEP_IDS[$i]}" "${STEP_TITLES[$i]}" "${reason:+  (${reason})}"
+    if [[ -n $reason ]]; then emit_event plan "${STEP_IDS[$i]}" skip "${STEP_TITLES[$i]}" "$reason"
+    else emit_event plan "${STEP_IDS[$i]}" run "${STEP_TITLES[$i]}" ""; fi
   done
   hr
   is_dry_run || warn "Steps that run will modify ${local_web_root} and the local database '${import_db_name}'. Back up the local site first if you need it."
 }
 
 main() {
+  ORIG_ARGS="$*"
   parse_args "$@"
   register_steps
   validate_step_lists
@@ -227,6 +252,11 @@ main() {
   trap cleanup EXIT
   trap 'printf "\n"; warn "Interrupted."; exit 130' INT TERM
   ssh_setup
+  if [[ -n $TEST_TARGETS ]]; then
+    if in_csv tools "$TEST_TARGETS" || in_csv local-root "$TEST_TARGETS"; then detect_platform; fi
+    preflight_test "$TEST_TARGETS"
+    exit $?
+  fi
   setup_logging
   detect_platform
   if [[ $CHECK_ONLY == true ]]; then

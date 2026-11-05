@@ -14,6 +14,7 @@ STEP_DESCS=()
 REPORT_LINES=()
 FAILED_STEPS=()
 STOP_REQUESTED=false
+EVENTS_FILE=""
 
 # register_step ID TITLE FUNCTION PLATFORMS DEFAULT(y|n) DESCRIPTION
 #   PLATFORMS: "all" or a comma list (wordpress,laravel)
@@ -22,6 +23,21 @@ STOP_REQUESTED=false
 register_step() {
   STEP_IDS+=("$1"); STEP_TITLES+=("$2"); STEP_FUNCS+=("$3")
   STEP_PLATFORMS+=("$4"); STEP_DEFAULTS+=("$5"); STEP_DESCS+=("$6")
+}
+
+# emit_event TYPE FIELDS... — append one tab-separated line (epoch first) to
+# the run's .events file, which the GUI reads for live progress. Tabs and
+# newlines inside fields become spaces. No-op when no events file is set.
+emit_event() {
+  [[ -n $EVENTS_FILE ]] || return 0
+  local line f
+  line=$(date +%s)
+  for f in "$@"; do
+    f=${f//$'\t'/ }
+    f=${f//$'\n'/ }
+    line+=$'\t'"$f"
+  done
+  printf '%s\n' "$line" >> "$EVENTS_FILE"
 }
 
 step_index() {
@@ -61,6 +77,12 @@ step_skip_reason() {
   if is_true "${!var:-false}"; then printf '%s=true' "$var"; return 0; fi
   if [[ $platforms != all ]] && ! in_csv "${platform:-unknown}" "$platforms"; then printf 'platform is %s' "${platform:-unknown}"; return 0; fi
   if [[ $id == maintenance-on && ${WEB_ROOT_CLEARED:-false} == true ]]; then printf 'web root was cleared'; return 0; fi
+  case $id in
+    before-run|after-run)
+      var="${id//-/_}_hook"
+      if [[ -z ${!var:-} ]]; then printf 'no %s set' "$var"; return 0; fi
+      ;;
+  esac
   if [[ $default == n ]] && is_true "${AUTO_CONFIRM:-false}"; then
     runvar="run_${id//-/_}"
     if ! in_csv "$id" "${WITH_STEPS:-}" && ! in_csv "$id" "${ONLY_STEPS:-}" && ! is_true "${!runvar:-false}"; then
@@ -82,6 +104,7 @@ run_step() {
   reason=$(step_skip_reason "$id")
   if [[ -n $reason ]]; then
     report_add "${I_SKIP}" "${title} — skipped (${reason})"
+    emit_event step_skip "$id" "$reason"
     return 0
   fi
   runvar="run_${id//-/_}"
@@ -89,13 +112,16 @@ run_step() {
   printf '\n'
   if ! confirm "Run step '${title}'?" "$default" y; then
     report_add "${I_SKIP}" "${title} — skipped by user"
+    emit_event step_skip "$id" "skipped by user"
     return 0
   fi
   section "$title"
   start=$SECONDS
   CURRENT_STEP=$id
+  emit_event step_start "$id" "$title"
   if "$fn"; then rc=0; else rc=$?; fi
   elapsed=$((SECONDS - start))
+  emit_event step_end "$id" "$rc" "$elapsed"
   if ((rc == 0)); then
     ok "${title} finished in $(fmt_duration "$elapsed")"
     report_add "${I_OK}" "${title} ($(fmt_duration "$elapsed"))"

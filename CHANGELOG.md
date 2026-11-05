@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.2.0 — 2026-10-20
+
+### Added
+- **GUI** (`./gui.sh`): a local, dependency-free web interface (Python 3.8+ standard library, vanilla JS). It includes a setup wizard with tooltips and visual helpers, connection tests before a run, several migrations (`.env` plus `sites/<name>.env`), step toggles, before/after hook editing, runs with live per-step progress and Stop, run history and a log browser. It has a built-in user guide and binds to 127.0.0.1 with a per-launch token.
+- `before_run_hook` / `after_run_hook` and the `before-run` / `after-run` steps: your own script or command first and last, with `UMS_*` variables.
+- `--test IDS` (`tools`, `local-root`, `ssh`, `remote-db`, `local-db`, `disk`): run individual preflight checks without a log, even before the local side is configured.
+- `logs/migrate-<tag>.events`: machine-readable progress for each run (plan, checks, step start/end/skip, exit code).
+- `MIGRATE_RUN_TAG` environment variable to choose the run's file names (used by the GUI).
+
+### Changed
+- Preflight decides which checks apply in `preflight_run`, so each `pf_check_*` can also run on its own.
+
 ## 1.1.0 — 2026-10-15
 
 ### Added

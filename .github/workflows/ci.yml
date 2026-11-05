@@ -15,6 +15,7 @@ jobs:
       - run: shellcheck --version
       - run: shellcheck -x migrate.sh
       - run: shellcheck -s bash tests/stubs/bin/* tests/test_helper.bash
+      - run: shellcheck gui.sh
 
   test:
     name: bats (${{ matrix.os }})
@@ -30,3 +31,5 @@ jobs:
           if [ "$RUNNER_OS" = "Linux" ]; then sudo apt-get update -qq && sudo apt-get install -y -qq bats; else brew install bats-core; fi
           bats --version
       - run: bats --tap tests
+      - name: GUI tests
+        run: python3 -m unittest discover -v -s tests -p 'test_gui.py'

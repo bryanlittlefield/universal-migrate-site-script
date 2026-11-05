@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Migrate Site</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230e7c72'/%3E%3Cpath d='M8 11h11l-3-3M24 21H13l3 3' stroke='white' stroke-width='2.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div class="shell">
+  <aside class="side" id="side">
+    <a class="brand" href="#/">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="currentColor"/><path d="M8 11h11l-3-3M24 21H13l3 3" stroke="var(--accent-ink)" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>Migrate Site</span>
+    </a>
+    <div class="side-label">Migrations</div>
+    <nav class="profiles" id="profile-list" aria-label="Migrations"></nav>
+    <a class="side-new" href="#/new"><span aria-hidden="true">＋</span> New migration</a>
+    <div class="side-foot">
+      <a href="#/guide" class="side-link" id="guide-link"><span aria-hidden="true">?</span> User guide</a>
+      <button type="button" class="side-link" id="theme-btn"><span aria-hidden="true">◐</span> <span id="theme-label">Theme: system</span></button>
+      <div class="side-version" id="version"></div>
+    </div>
+  </aside>
+  <main class="main" id="main" tabindex="-1">
+    <div class="loading">Loading…</div>
+  </main>
+</div>
+<div class="tip" id="tip" role="tooltip" hidden></div>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+<dialog id="dialog" class="dialog"></dialog>
+<script src="app.js"></script>
+</body>
+</html>

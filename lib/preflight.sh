@@ -4,27 +4,56 @@
 PF_FAIL=0
 PF_WARN=0
 
-pf_ok() { printf '  %s%s%s %s\n' "${C_GREEN}" "${I_OK}" "${C_RESET}" "$*"; }
-pf_fail() { printf '  %s%s%s %s\n' "${C_RED}" "${I_FAIL}" "${C_RESET}" "$*"; PF_FAIL=$((PF_FAIL + 1)); }
-pf_warn() { printf '  %s%s%s %s\n' "${C_YELLOW}" "${I_WARN}" "${C_RESET}" "$*"; PF_WARN=$((PF_WARN + 1)); }
+pf_ok() { printf '  %s%s%s %s\n' "${C_GREEN}" "${I_OK}" "${C_RESET}" "$*"; emit_event check ok "$*"; }
+pf_fail() { printf '  %s%s%s %s\n' "${C_RED}" "${I_FAIL}" "${C_RESET}" "$*"; PF_FAIL=$((PF_FAIL + 1)); emit_event check fail "$*"; }
+pf_warn() { printf '  %s%s%s %s\n' "${C_YELLOW}" "${I_WARN}" "${C_RESET}" "$*"; PF_WARN=$((PF_WARN + 1)); emit_event check warn "$*"; }
+
+# The ids accepted by --test, in the order they run.
+PF_TEST_IDS="tools,local-root,ssh,remote-db,local-db,disk"
 
 # preflight_run [full] — "full" adds the (slow) disk-space comparison.
 preflight_run() {
   local mode=${1:-quick}
   PF_FAIL=0; PF_WARN=0
   section "Preflight checks"
+  emit_event preflight_start
   pf_check_binaries
   pf_check_local_root
-  pf_check_ssh
-  pf_check_remote_db
-  pf_check_local_db
-  if [[ $mode == full ]] || is_true "$preflight_disk_check"; then pf_check_disk; fi
+  if step_enabled sync-files || step_enabled migrate-db; then pf_check_ssh; fi
+  if step_enabled migrate-db; then
+    pf_check_remote_db
+    pf_check_local_db
+  fi
+  if step_enabled sync-files && { [[ $mode == full ]] || is_true "$preflight_disk_check"; }; then pf_check_disk; fi
   hr
   if ((PF_FAIL)); then
+    emit_event preflight_end 1 "$PF_FAIL" "$PF_WARN"
     error "${PF_FAIL} preflight check(s) failed."
     return 1
   fi
+  emit_event preflight_end 0 0 "$PF_WARN"
   ok "Preflight passed (${PF_WARN} warning(s))."
+}
+
+# preflight_test IDS — run only the named checks (comma-separated ids from
+# PF_TEST_IDS), whichever steps are enabled. Backs --test and the GUI's
+# connection buttons. Returns 1 if any check failed.
+preflight_test() {
+  local -a ids=()
+  local t
+  IFS=, read -r -a ids <<< "$1"
+  PF_FAIL=0; PF_WARN=0
+  for t in ${ids[@]+"${ids[@]}"}; do
+    case $t in
+      tools) pf_check_binaries ;;
+      local-root) pf_check_local_root ;;
+      ssh) pf_check_ssh ;;
+      remote-db) pf_check_remote_db ;;
+      local-db) pf_check_local_db ;;
+      disk) pf_check_disk ;;
+    esac
+  done
+  ((PF_FAIL == 0))
 }
 
 pf_check_binaries() {
@@ -70,7 +99,6 @@ pf_check_local_root() {
 }
 
 pf_check_ssh() {
-  step_enabled sync-files || step_enabled migrate-db || return 0
   if ! require_vars remote_ssh_host remote_ssh_user remote_ssh_web_root >/dev/null 2>&1; then
     pf_fail "remote_ssh_host, remote_ssh_user and remote_ssh_web_root are required"
     return 0
@@ -95,7 +123,6 @@ pf_check_ssh() {
 }
 
 pf_check_remote_db() {
-  step_enabled migrate-db || return 0
   if ! require_vars export_db_name export_db_user >/dev/null 2>&1; then
     pf_fail "export_db_name and export_db_user are required"
     return 0
@@ -110,7 +137,6 @@ pf_check_remote_db() {
 }
 
 pf_check_local_db() {
-  step_enabled migrate-db || return 0
   if ! require_vars import_db_name import_db_user >/dev/null 2>&1; then
     pf_fail "import_db_name and import_db_user are required"
     return 0
@@ -133,7 +159,6 @@ pf_check_local_db() {
 }
 
 pf_check_disk() {
-  step_enabled sync-files || return 0
   local remote_kb local_kb target
   remote_kb=$(ssh_run "du -sk $(shell_quote "$remote_ssh_web_root") 2>/dev/null | cut -f1" 2>/dev/null | tr -d '[:space:]')
   target=$local_web_root

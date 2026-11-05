@@ -325,3 +325,89 @@ migrate() { bash "$REPO_ROOT/migrate.sh" --env "$T/test.env" --plain "$@"; }
   [[ $output == *"Aborted"* ]]
   ! grep -q '^rsync' "$STUB_LOG"
 }
+
+@test "--test runs only the named checks, writes no log, and needs no local side" {
+  write_env wordpress tunnel "local_web_root=''"
+  run migrate --test ssh
+  echo "$output"
+  [ "$status" -eq 0 ]
+  [[ $output == *"[OK] SSH to deploy@remote.example.com (port 2222)"* ]]
+  [[ $output == *"[OK] Remote web root exists"* ]]
+  [[ $output != *"Remote database"* ]]
+  [ -z "$(ls "$T/logs")" ]
+
+  write_env wordpress remote "skip_db_import='true'"
+  run migrate --test remote-db,local-db
+  echo "$output"
+  [ "$status" -eq 0 ]
+  [[ $output == *"Remote database 'remotedb' reachable (remote method)"* ]]
+  [[ $output == *"Local DB server 127.0.0.1:3306 reachable as root"* ]]
+
+  STUB_SSH_TEST_EXIT=1 run migrate --test ssh
+  [ "$status" -eq 1 ]
+  [[ $output == *"[FAIL] Remote web root not found"* ]]
+
+  run migrate --test nope
+  [ "$status" -eq 1 ]
+  [[ $output == *"Unknown check 'nope'"* ]]
+}
+
+@test "every run writes an .events file the GUI reads, named by MIGRATE_RUN_TAG" {
+  make_wp_site
+  write_env wordpress remote
+  MIGRATE_RUN_TAG=gui-tag run migrate --yes --skip verify
+  echo "$output"
+  [ "$status" -eq 0 ]
+  ev="$T/logs/migrate-gui-tag.events"
+  [ -f "$T/logs/migrate-gui-tag.log" ]
+  [ -f "$T/logs/migrate-report-gui-tag.txt" ]
+  cat "$ev"
+  first=$(head -n 1 "$ev")
+  [[ $first == *$'\tstart\t'* ]]
+  [[ $first == *$'\t'"$T/test.env"$'\t'* ]]
+  [[ $first == *$'\trun\t'* ]]
+  grep -q $'\tplan\tsync-files\trun\tSync files from remote' "$ev"
+  grep -q $'\tplan\tverify\tskip\tVerify the migrated site\t--skip' "$ev"
+  grep -q $'\tplan\tbefore-run\tskip\tRun the before-run hook\tno before_run_hook set' "$ev"
+  grep -q $'\tpreflight_end\t0\t' "$ev"
+  grep -q $'\tcheck\tok\tSSH to deploy@remote.example.com' "$ev"
+  grep -q $'\tstep_start\tmigrate-db\tMigrate database' "$ev"
+  grep -q $'\tstep_end\tmigrate-db\t0\t' "$ev"
+  grep -q $'\tstep_skip\tverify\t--skip' "$ev"
+  [[ $(tail -n 1 "$ev") == *$'\tend\t0' ]]
+
+  MIGRATE_RUN_TAG='../bad tag' run migrate --check
+  [ "$status" -eq 0 ]
+  [ ! -e "$T/logs/migrate-../bad tag.events" ]
+  ls "$T/logs"/migrate-20*.events >/dev/null
+  grep -q $'\tcheck\t' "$T"/logs/migrate-20*.events
+}
+
+@test "before_run_hook and after_run_hook run first and last, with UMS_* variables" {
+  make_wp_site
+  mkdir -p "$T/hooks"
+  printf 'echo "before in $PWD for $UMS_LOCAL_URL hook=$UMS_HOOK"\n' > "$T/hooks/before.sh"
+  write_env wordpress remote "before_run_hook='$T/hooks/before.sh'" \
+    "after_run_hook='echo \"after platform=\$UMS_PLATFORM db=\$UMS_IMPORT_DB_NAME\"'"
+  run migrate --yes
+  echo "$output"
+  [ "$status" -eq 0 ]
+  [[ $output == *"before in $T/www for http://site.local hook=before_run"* ]]
+  [[ $output == *"after platform=wordpress db=localdb"* ]]
+  # order: before-run is the first step, after-run the last
+  [[ ${output%%Run the before-run hook finished*} != *"Sync files from remote finished"* ]]
+  [[ ${output##*Disable maintenance mode (local site) finished} == *"Run the after-run hook finished"* ]]
+
+  write_env wordpress remote "before_run_hook='exit 7'"
+  run migrate --yes
+  [ "$status" -eq 1 ]
+  [[ $output == *"Run the before-run hook FAILED (exit 7)"* ]]
+  ! grep -q '^rsync' "$STUB_LOG"
+
+  : > "$STUB_LOG"
+  write_env wordpress remote "before_run_hook='touch $T/ran'"
+  run migrate --yes --dry-run
+  [ "$status" -eq 0 ]
+  [[ $output == *"[dry-run] bash -c touch\\ $T/ran"* || $output == *"[dry-run] bash -c"*"$T/ran"* ]]
+  [ ! -e "$T/ran" ]
+}
