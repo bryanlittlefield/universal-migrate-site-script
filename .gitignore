@@ -28,3 +28,6 @@ sites/*
 hooks/*
 !hooks/.gitkeep
 __pycache__/
+
+# Local DDEV WordPress site (dev/testing only)
+mysite/
