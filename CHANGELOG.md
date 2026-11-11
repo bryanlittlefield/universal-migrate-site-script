@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### Added
+- `use_pv` (default `true`, also in the GUI under Behaviour): set `false` to turn off the `pv` progress bars for the database export and import without losing colours. Each bar is an extra process, which matters on hosts that cap processes per account.
+
 ### Changed
 - The database export downloads the raw dump to `<dump>.raw[.gz]` first and filters it (DEFINERs, collations) in a second pass instead of streaming through `gunzip | sed | pv`. Only `ssh` (or the local `mysqldump` for the tunnel method) runs during the transfer, which keeps the run under per-account process limits on managed hosts (`Process count of N exceeded maximum allowed value of 25`).
 

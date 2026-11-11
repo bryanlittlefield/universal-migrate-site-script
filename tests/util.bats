@@ -116,3 +116,23 @@ teardown() { rm -rf "$T"; }
   [[ $output == *"[dry-run]"* ]]
   [[ $output == *"rm -rf /definitely/not/here"* ]]
 }
+
+@test "pv_enabled honours use_pv, plain_output and the TTY" {
+  local bin
+  bin=$(new_tmp)
+  printf '#!/bin/sh\ncat\n' > "$bin/pv"
+  chmod +x "$bin/pv"
+  PATH="$bin:$PATH"
+  STDOUT_IS_TTY=true plain_output=false use_pv=true
+  pv_enabled
+  use_pv=false
+  run pv_enabled
+  [ "$status" -ne 0 ]
+  use_pv=true plain_output=true
+  run pv_enabled
+  [ "$status" -ne 0 ]
+  plain_output=false STDOUT_IS_TTY=false
+  run pv_enabled
+  [ "$status" -ne 0 ]
+  rm -rf "$bin"
+}

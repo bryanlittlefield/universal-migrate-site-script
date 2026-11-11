@@ -795,6 +795,7 @@ cp .env.example .env</code></pre>
         <tr><td><code>./migrate.sh --yes --with clear-web-root</code></td><td>Unattended full wipe and sync. Opt-in steps need <code>--with</code>, <code>--only</code> or <code>run_&lt;step&gt;='true'</code>.</td></tr>
         <tr><td><code>./migrate.sh --env sites/client-a.env</code></td><td>Keep one checkout and several site configs.</td></tr>
         <tr><td><code>./migrate.sh --plain</code></td><td>No colours or emoji, for CI logs. Same as <code>plain_output='true'</code>.</td></tr>
+        <tr><td><code>use_pv='false'</code></td><td>No <code>pv</code> progress bars for the database, colours kept. For hosts that cap processes per account.</td></tr>
         <tr><td><code>./migrate.sh --list-steps</code></td><td>Print the step ids, their mode and platforms.</td></tr>
       </tbody>
     </table></div>

@@ -57,7 +57,8 @@ preflight_test() {
 }
 
 pf_check_binaries() {
-  local need="" optional="pv gzip" b
+  local need="" optional="gzip" b
+  is_true "$use_pv" && optional="pv $optional"
   pf_need() { in_csv "$1" "${need//,/,}" || need="${need:+$need,}$1"; }
   if step_enabled sync-files || step_enabled migrate-db; then pf_need ssh; fi
   step_enabled sync-files && pf_need rsync

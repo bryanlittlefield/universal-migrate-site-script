@@ -216,6 +216,7 @@ All settings live in `.env`; see [.env.example](.env.example) for every key with
 | Key | Default | Meaning |
 |---|---|---|
 | `auto_confirm`, `plain_output` | `false` | Same as `--yes`, `--plain` |
+| `use_pv` | `true` | `pv` progress bars for the DB export and import (terminal runs only). Set `false` on hosts that cap processes per account (`Process count of N exceeded maximum allowed value of 25`); `--plain` also turns them off |
 | `continue_on_error` | `false` | Keep running later steps after a failure |
 | `log_dir`, `dump_dir` | `logs`, `dumps` | Relative to the script directory |
 | `preflight_disk_check` | `false` | Compare remote size (`du`) with local free space before syncing; slow on large sites. Always on with `--check` |

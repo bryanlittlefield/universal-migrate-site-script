@@ -187,6 +187,8 @@
          "help": "curl the local domain at the end and report the status code."},
         {"key": "verify_db_check", "label": "wp db check in verify", "type": "bool",
          "help": "Run a table check after the import (WordPress)."},
+        {"key": "use_pv", "label": "Progress bars for the database (pv)", "type": "bool",
+         "help": "Shows a pv progress bar while the database downloads and imports, in terminal runs when pv is installed. Each bar is an extra process: turn this off on hosts with a per-account process limit (\"Process count of N exceeded maximum allowed value\"). Colours and emoji are not affected."},
         {"key": "preflight_disk_check", "label": "Disk space check before every run", "type": "bool",
          "help": "Compares the remote site size with free local space before syncing. Slow on big sites; always done by Check everything."},
         {"key": "log_dir", "label": "Log folder", "type": "text", "advanced": true,

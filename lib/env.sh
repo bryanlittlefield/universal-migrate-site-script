@@ -67,7 +67,7 @@ apply_env_defaults() {
   # Kinsta
   : "${kinsta_mu_plugins_url:=https://kinsta.com/kinsta-tools/kinsta-mu-plugins.zip}" "${kinsta_force_reinstall:=false}"
   # Behaviour
-  : "${auto_confirm:=false}" "${continue_on_error:=false}" "${plain_output:=false}"
+  : "${auto_confirm:=false}" "${continue_on_error:=false}" "${plain_output:=false}" "${use_pv:=true}"
   : "${log_dir:=logs}" "${dump_dir:=dumps}" "${preflight_disk_check:=false}"
   : "${verify_http:=true}" "${verify_db_check:=false}"
   # Hooks
