@@ -1193,12 +1193,12 @@
 
 <section id="g-setup"><h2>The setup wizard</h2>
 <ol>
-<li><b>Remote server</b>: SSH host, user, port, how you log in (key, password or ssh-agent), the remote web root and the live domain.</li>
-<li><b>Remote database</b>: the credentials from <code>wp-config.php</code> or Laravel's <code>.env</code> on the server, and the export method. <i>SSH tunnel</i> runs your local mysqldump through <code>ssh -L</code>; <i>Dump on the server</i> runs mysqldump remotely and streams it back compressed.</li>
+<li><b>Remote server</b>: SSH host, user, port, how you log in (key, password or ssh-agent), the remote web root and the live domain. <i>Advanced</i> holds the settings for hosts with a non-standard WordPress layout: <i>Only sync this folder</i>, <i>WP-CLI folder</i> and <i>wp-config.php path</i>.</li>
+<li><b>Remote database</b>: the credentials from <code>wp-config.php</code> or Laravel's <code>.env</code> on the server, and the export method. <i>SSH tunnel</i> runs your local mysqldump through <code>ssh -L</code>; <i>Dump on the server</i> runs mysqldump remotely and downloads it compressed.</li>
 <li><b>Local site</b>: the folder to sync into, the local domain, the platform, and what and how to copy.</li>
 <li><b>Local database</b>: the database that is replaced. It is backed up first unless you turn that off. <i>Keep local data for tables</i> preserves, say, <code>wp_options</code> across the import.</li>
 <li><b>WordPress &amp; Laravel</b>: local-only settings applied after the copy.</li>
-<li><b>Behaviour</b>: whether to keep going after a failure, and the extra checks. Any key in <code>.env.example</code> that has no dedicated field appears under <i>Advanced</i>.</li>
+<li><b>Behaviour</b>: whether to keep going after a failure, the database progress bars (pv) and the extra checks. Any key in <code>.env.example</code> that has no dedicated field appears under <i>Advanced</i>.</li>
 <li><b>Review &amp; save</b>: everything on one page, changed values flagged, plus a final connection check.</li>
 </ol>
 <p>The steps are not locked: jump to any of them from the bar at the top. A number turns into ✓ when its required fields (<span style="color:var(--bad)">*</span>) are filled in. The diagram and the URL rewrite preview update as you type.</p>
@@ -1280,6 +1280,8 @@
 <dt>SSH test hangs, then fails</dt><dd>The GUI cannot answer password or passphrase prompts. Use a key without a passphrase, load it with <code>ssh-add</code> first, or use a password with <code>sshpass</code>.</dd>
 <dt>Remote database fails with the tunnel method</dt><dd>The server may forbid TCP forwarding. Switch the export method to <i>Dump on the server</i>.</dd>
 <dt>SSL errors from the database client</dt><dd>Set the SSL flag under <i>Advanced</i>: <code>--skip-ssl</code> for MariaDB clients, <code>--ssl-mode=DISABLED</code> for MySQL clients.</dd>
+<dt>"Process count of N exceeded maximum allowed value"</dt><dd>The host limits how many processes your account may run and stopped the script. Turn off <i>Progress bars for the database (pv)</i> under Behaviour, log in with a key file, and run while the site is quiet.</dd>
+<dt>wp-config.php not found, or WP-CLI cannot find WordPress</dt><dd>The host keeps WordPress core outside the web root. Under Remote server → <i>Advanced</i>, set <i>Only sync this folder</i> (usually <code>wp-content</code>), <i>WP-CLI folder</i> and <i>wp-config.php path</i>.</dd>
 <dt>A run shows "Interrupted"</dt><dd>The script exited without its final event (killed, machine asleep). Check the log, and remove <code>.maintenance</code> or run <code>php artisan up</code> if the site is still in maintenance mode.</dd>
 <dt>A setting does not seem to apply</dt><dd>Check for unsaved changes (the dark bar at the bottom), and that the key is not set twice in the env file by hand.</dd>
 </dl>
