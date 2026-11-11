@@ -7,10 +7,18 @@
 # (see normalize_env) and also passed to `wp config …` as --config-file.
 
 # wp_args ARGS... — fills WP_ARGS with the full argument list for wp.
+# Global flags (--quiet) are moved in front of the command: hosts that set
+# WP_CLI_STRICT_ARGS_MODE treat anything after the command as a command
+# argument and fail with "unknown --quiet parameter".
 wp_args() {
-  local -a extra=()
+  local -a extra=() global=() rest=()
+  local a
   [[ -n $wp_cli_extra_opts ]] && read -r -a extra <<< "$wp_cli_extra_opts"
-  WP_ARGS=(--path="${WP_PATH:-$local_web_root}" --allow-root ${extra[@]+"${extra[@]}"} "$@")
+  for a in "$@"; do
+    if [[ $a == --quiet ]]; then global+=("$a"); else rest+=("$a"); fi
+  done
+  WP_ARGS=(--path="${WP_PATH:-$local_web_root}" --allow-root ${extra[@]+"${extra[@]}"}
+           ${global[@]+"${global[@]}"} ${rest[@]+"${rest[@]}"})
   if [[ -n ${wp_config_path:-} && ${1-} == config ]]; then WP_ARGS+=(--config-file="$wp_config_path"); fi
 }
 

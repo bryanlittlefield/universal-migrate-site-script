@@ -1,6 +1,16 @@
 #!/usr/bin/env bash
 printf 'wp %s\n' "$*" >> "${STUB_LOG:-/dev/null}"
 [[ -n ${WP_CONFIG_PATH:-} ]] && printf 'wp-env WP_CONFIG_PATH=%s\n' "$WP_CONFIG_PATH" >> "${STUB_LOG:-/dev/null}"
+# Like WP_CLI_STRICT_ARGS_MODE: a global flag after the command is an error.
+seen_cmd=false
+for a in "$@"; do
+  case $a in
+    --quiet|--url=*|--path=*|--allow-root|--skip-plugins|--skip-themes)
+      if [[ $seen_cmd == true ]]; then printf 'Error: Parameter errors:\n unknown %s parameter\n' "${a%%=*}" >&2; exit 1; fi ;;
+    -*) ;;
+    *) seen_cmd=true ;;
+  esac
+done
 args=" $* "
 case "$args" in
   *" core is-installed --network "*) exit "${STUB_WP_MULTISITE_EXIT:-1}" ;;

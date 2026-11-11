@@ -220,7 +220,7 @@ CFG
   # every WP-CLI call targets the core folder and the custom config file
   [ -z "$(grep '^wp ' "$STUB_LOG" | grep -v -- "--path=$T/core ")" ]
   grep -q "^wp-env WP_CONFIG_PATH=$T/conf/wp-config.php$" "$STUB_LOG"
-  grep -q "^wp .*config set DB_NAME localdb --quiet --config-file=$T/conf/wp-config.php$" "$STUB_LOG"
+  grep -q "^wp --path=$T/core --allow-root --quiet config set DB_NAME localdb --config-file=$T/conf/wp-config.php$" "$STUB_LOG"
   [ -z "$(grep '^wp ' "$STUB_LOG" | grep -v ' config ' | grep -- '--config-file')" ]
   # host-cleanup edits the custom file; maintenance mode used the core folder
   [ -z "$(grep 'WPE_APIKEY' "$T/conf/wp-config.php")" ]
