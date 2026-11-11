@@ -2,7 +2,9 @@
 # steps/clear-web-root.sh — delete everything inside local_web_root (opt-in).
 
 step_clear_web_root() {
-  local root=$local_web_root depth typed name
+  local root=$local_web_root depth typed name whole=true
+  # With sync_path only that folder is synced, so only that folder is cleared.
+  if [[ -n $sync_path ]]; then root="$local_web_root/$sync_path"; whole=false; fi
   if [[ -z $root || $root == / || $root == . || $root == "$HOME" || $root == "$SCRIPT_DIR" || $SCRIPT_DIR == "$root"/* ]]; then
     error "Refusing to clear suspicious web root: '${root}'"
     return 1
@@ -17,7 +19,7 @@ step_clear_web_root() {
     return 1
   fi
   if [[ ! -d $root ]]; then
-    info "Web root does not exist yet; nothing to clear."
+    info "${root} does not exist yet; nothing to clear."
     return 0
   fi
   warn "This deletes EVERYTHING inside ${root}, including dotfiles."
@@ -32,10 +34,10 @@ step_clear_web_root() {
   fi
   if is_dry_run; then
     info "[dry-run] would delete the contents of ${root}"
-    WEB_ROOT_CLEARED=true
+    WEB_ROOT_CLEARED=$whole
     return 0
   fi
   find "$root" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} + || { error "Failed to clear ${root}"; return 1; }
-  WEB_ROOT_CLEARED=true
+  WEB_ROOT_CLEARED=$whole
   ok "Cleared ${root}"
 }

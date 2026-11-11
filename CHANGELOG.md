@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Added
+- Non-standard WordPress layouts (hosts that manage core themselves): `sync_path` syncs one folder inside the web root (e.g. `wp-content`) instead of the whole install, `wp_cli_path` sets the folder every WP-CLI command runs against, and `wp_config_path` points at a `wp-config.php` outside the web root. In the GUI they are under Setup → Remote server → Advanced.
 - `use_pv` (default `true`, also in the GUI under Behaviour): set `false` to turn off the `pv` progress bars for the database export and import without losing colours. Each bar is an extra process, which matters on hosts that cap processes per account.
 
 ### Changed

@@ -141,6 +141,12 @@ db_preserve_tables='wp_options'
 sync_mode='code'
 skip_db_import='true'
 
+# Host with a non-standard layout (core managed by the host): sync wp-content only,
+# and tell WP-CLI where core and wp-config.php live
+sync_path='wp-content'
+wp_cli_path='/srv/htdocs/__wp__'
+wp_config_path='/srv/htdocs/wp-config.php'
+
 # Database only, straight from a cron job
 ./migrate.sh --yes --only migrate-db,app-config,cache-refresh
 ```
@@ -192,6 +198,7 @@ All settings live in `.env`; see [.env.example](.env.example) for every key with
 
 | Key | Default | Meaning |
 |---|---|---|
+| `sync_path` | | Sync only this folder inside the web root, e.g. `wp-content`, instead of the whole install. Relative to both `remote_ssh_web_root` and `local_web_root`. Excludes, `sync_mode=code` and `rsync_mode=mirror` apply inside it; `clear-web-root` clears only this folder |
 | `sync_mode` | `full` | `full`, `code` (skip uploads), `uploads` (only uploads) |
 | `rsync_mode` | `sync` | `sync` (transfer changed files), `ignore-existing` (only new files, the original behaviour), `mirror` (`--delete` local extras) |
 | `rsync_bwlimit`, `rsync_extra_opts` | | Throttle or extend rsync |
@@ -208,6 +215,8 @@ All settings live in `.env`; see [.env.example](.env.example) for every key with
 | `db_exclude_tables_file_path` | `config/db-tables-exclude.txt` | Tables exported **without data** (wildcards allowed) |
 | `wp_environment_type`, `wp_debug`, `wp_discourage_search_engines`, `wp_remove_dropins` | `local`, `true`, `true`, `true` | Local hardening |
 | `wp_local_admin_user`, `wp_local_admin_pass`, `wp_local_admin_email` | | Create/update a local administrator |
+| `wp_cli_path` | `local_web_root` | Folder every WP-CLI command runs against (`wp --path`): the one holding `wp-includes`. Maintenance mode's `.maintenance` goes here too |
+| `wp_config_path` | `local_web_root/wp-config.php` | Full path to the local `wp-config.php`. Used for the config edits and passed to WP-CLI (`WP_CONFIG_PATH`, `--config-file`) |
 | `wp_cli_extra_opts` | | e.g. `--skip-plugins --skip-themes` if a plugin fatals under WP-CLI |
 | `host_mu_plugins_file_path`, `host_plugins_deactivate_file_path`, `wpe_config_patterns_file_path` | `config/…` | What host-cleanup / local-hardening remove or deactivate |
 

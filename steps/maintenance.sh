@@ -6,17 +6,22 @@
 step_maintenance_on() {
   case $platform in
     wordpress)
-      if [[ ! -d $local_web_root ]]; then
-        info "Web root does not exist yet; nothing to put into maintenance mode."
+      # WordPress looks for .maintenance in ABSPATH, i.e. the core folder.
+      if [[ ! -d $WP_PATH ]]; then
+        info "WordPress folder does not exist yet; nothing to put into maintenance mode."
+        return 0
+      fi
+      if [[ ! -w $WP_PATH ]]; then
+        warn "Cannot write to ${WP_PATH} (host-managed WordPress core?); skipping maintenance mode."
         return 0
       fi
       if is_dry_run; then
-        info "[dry-run] would write ${local_web_root}/.maintenance"
+        info "[dry-run] would write ${WP_PATH}/.maintenance"
         return 0
       fi
-      printf '<?php $upgrading = time(); ?>\n' > "$local_web_root/.maintenance" || return 1
+      printf '<?php $upgrading = time(); ?>\n' > "$WP_PATH/.maintenance" || return 1
       MAINT_ACTIVE=true
-      info "Maintenance mode enabled (${local_web_root}/.maintenance)"
+      info "Maintenance mode enabled (${WP_PATH}/.maintenance)"
       ;;
     laravel)
       [[ -f $local_web_root/artisan ]] || { info "No artisan file yet; skipping."; return 0; }
@@ -33,8 +38,8 @@ step_maintenance_on() {
 step_maintenance_off() {
   case $platform in
     wordpress)
-      if [[ -f $local_web_root/.maintenance ]]; then
-        run_cmd rm -f -- "$local_web_root/.maintenance" || return 1
+      if [[ -f $WP_PATH/.maintenance ]]; then
+        run_cmd rm -f -- "$WP_PATH/.maintenance" || return 1
         info "Maintenance mode disabled"
       else
         info "No .maintenance file present."

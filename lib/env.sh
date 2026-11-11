@@ -50,6 +50,7 @@ apply_env_defaults() {
   # Platform
   : "${platform:=auto}" "${uploads_rel_path:=}"
   # File sync
+  : "${sync_path:=}" "${wp_cli_path:=}" "${wp_config_path:=}"
   : "${sync_mode:=full}" "${rsync_mode:=sync}" "${rsync_bwlimit:=}" "${rsync_extra_opts:=}"
   : "${rsync_exclude_file_path:=config/rsync-exclude.txt}"
   : "${db_exclude_tables_file_path:=config/db-tables-exclude.txt}"
@@ -85,6 +86,17 @@ normalize_env() {
   remote_ssh_key=${remote_ssh_key/#\~/$HOME}
   local_web_root=$(normalize_dir "$local_web_root")
   remote_ssh_web_root=$(normalize_dir "$remote_ssh_web_root")
+  # Non-standard layouts: sync one folder only, WordPress core and
+  # wp-config.php somewhere other than the web root.
+  sync_path=${sync_path#./}
+  while [[ $sync_path == /* ]]; do sync_path=${sync_path#/}; done
+  sync_path=$(normalize_dir "$sync_path")
+  wp_cli_path=$(normalize_dir "${wp_cli_path/#\~/$HOME}")
+  wp_config_path=${wp_config_path/#\~/$HOME}
+  WP_PATH=${wp_cli_path:-$local_web_root}
+  WP_CONFIG_FILE=${wp_config_path:-$local_web_root/wp-config.php}
+  # WP-CLI reads WP_CONFIG_PATH to find a wp-config.php outside the core folder.
+  [[ -n $wp_config_path ]] && export WP_CONFIG_PATH=$wp_config_path
   remote_domain=$(normalize_domain "$remote_domain")
   local_domain=$(normalize_domain "$local_domain")
   platform=$(to_lower "$platform"); [[ -z $platform ]] && platform=auto
@@ -104,6 +116,9 @@ validate_env() {
   case $platform in wordpress|laravel|auto) ;; *) error "platform must be wordpress, laravel or auto (got '$platform')"; bad=1 ;; esac
   case $db_export_method in tunnel|remote) ;; *) error "db_export_method must be tunnel or remote (got '$db_export_method')"; bad=1 ;; esac
   case $sync_mode in full|code|uploads) ;; *) error "sync_mode must be full, code or uploads (got '$sync_mode')"; bad=1 ;; esac
+  case "/$sync_path/" in */../*|*/./*) error "sync_path must be a folder inside the web root, without . or .. (got '$sync_path')"; bad=1 ;; esac
+  if [[ -n $wp_config_path && $wp_config_path != /* ]]; then error "wp_config_path must be an absolute path to wp-config.php (got '$wp_config_path')"; bad=1; fi
+  if [[ -n $wp_cli_path && $wp_cli_path != /* ]]; then error "wp_cli_path must be an absolute path (got '$wp_cli_path')"; bad=1; fi
   case $rsync_mode in sync|ignore-existing|mirror) ;; *) error "rsync_mode must be sync, ignore-existing or mirror (got '$rsync_mode')"; bad=1 ;; esac
   case $local_scheme in http|https) ;; *) error "local_scheme must be http or https"; bad=1 ;; esac
   case $remote_scheme in http|https) ;; *) error "remote_scheme must be http or https"; bad=1 ;; esac
@@ -128,7 +143,8 @@ require_vars() {
 
 detect_platform() {
   if [[ $platform == auto ]]; then
-    if [[ -f $local_web_root/wp-config.php || -d $local_web_root/wp-includes ]]; then
+    local cfg=${WP_CONFIG_FILE:-$local_web_root/wp-config.php} core=${WP_PATH:-$local_web_root}
+    if [[ -f $cfg || -d $core/wp-includes || -n ${wp_cli_path:-} || -n ${wp_config_path:-} ]]; then
       platform=wordpress
     elif [[ -f $local_web_root/artisan ]]; then
       platform=laravel

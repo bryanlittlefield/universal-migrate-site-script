@@ -19,12 +19,19 @@ step_sync_files() {
     mirror) opts+=(--delete) ;;
   esac
   [[ -f $rsync_exclude_file_path ]] && opts+=(--exclude-from="$rsync_exclude_file_path")
+  # Excludes come first so they still apply inside an include-only folder.
   case $sync_mode in
     code) opts+=(--exclude="/${uploads_rel_path}/") ;;
     uploads)
-      while IFS= read -r f; do opts+=("$f"); done < <(uploads_only_filters "$uploads_rel_path")
+      if [[ -n $sync_path && "$uploads_rel_path/" != "$sync_path/"* ]]; then
+        warn "sync_mode=uploads copies ${uploads_rel_path}, which is outside sync_path '${sync_path}'"
+      fi
+      while IFS= read -r f; do opts+=("$f"); done < <(only_path_filters "$uploads_rel_path")
       ;;
   esac
+  if [[ -n $sync_path && $sync_mode != uploads ]]; then
+    while IFS= read -r f; do opts+=("$f"); done < <(only_path_filters "$sync_path")
+  fi
   [[ -n $rsync_bwlimit ]] && opts+=(--bwlimit="$rsync_bwlimit")
   if [[ -n $rsync_extra_opts ]]; then
     local -a extra
@@ -35,6 +42,7 @@ step_sync_files() {
   is_dry_run && opts+=(--dry-run)
   opts+=(-e "$(rsh_string)")
 
+  [[ -n $sync_path ]] && info "Only syncing the folder '${sync_path}' inside the web root (sync_path)"
   info "Sync mode: ${sync_mode}, rsync mode: ${rsync_mode}, excludes: ${rsync_exclude_file_path}"
   info "rsync ${REMOTE}:${remote_ssh_web_root}/  ->  ${local_web_root}/"
   rsync "${opts[@]}" "${REMOTE}:${remote_ssh_web_root}/" "${local_web_root}/" || rc=$?

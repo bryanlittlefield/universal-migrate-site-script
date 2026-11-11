@@ -11,11 +11,11 @@ step_app_config() {
 
 wp_app_config() {
   require_vars local_domain remote_domain import_db_name import_db_user || return 1
-  [[ -f $local_web_root/wp-config.php ]] || { error "wp-config.php not found in ${local_web_root}"; return 1; }
+  [[ -f $WP_CONFIG_FILE ]] || { error "wp-config.php not found: ${WP_CONFIG_FILE}"; return 1; }
   local db_host=$import_db_host home skip_tables old new url pair cur
   [[ $import_db_port != 3306 ]] && db_host="${import_db_host}:${import_db_port}"
 
-  info "Writing local database credentials and URLs to wp-config.php"
+  info "Writing local database credentials and URLs to ${WP_CONFIG_FILE}"
   wpcli config set DB_NAME "$import_db_name" --quiet || return 1
   wpcli config set DB_USER "$import_db_user" --quiet || return 1
   wpcli config set DB_PASSWORD "$import_db_pass" --quiet || return 1

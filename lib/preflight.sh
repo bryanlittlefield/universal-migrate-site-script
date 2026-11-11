@@ -93,8 +93,15 @@ pf_check_local_root() {
   else
     pf_fail "Local web root does not exist: $local_web_root"
   fi
-  if [[ $platform == wordpress && -d $local_web_root && ! -f $local_web_root/wp-config.php ]] && ! step_enabled sync-files; then
-    pf_warn "No wp-config.php in $local_web_root and file sync is disabled; WordPress steps will fail"
+  if [[ $platform == wordpress && -d $local_web_root && ! -f $WP_CONFIG_FILE ]]; then
+    if [[ -n $wp_config_path ]]; then
+      pf_warn "wp_config_path does not exist (yet): $WP_CONFIG_FILE"
+    elif ! step_enabled sync-files || [[ -n $sync_path ]]; then
+      pf_warn "No wp-config.php in $local_web_root and the file sync will not bring one; WordPress steps will fail (set wp_config_path if it lives elsewhere)"
+    fi
+  fi
+  if [[ $platform == wordpress && -n $wp_cli_path ]]; then
+    if [[ -d $wp_cli_path ]]; then pf_ok "WP-CLI folder exists: $wp_cli_path"; else pf_fail "wp_cli_path does not exist: $wp_cli_path"; fi
   fi
   return 0
 }

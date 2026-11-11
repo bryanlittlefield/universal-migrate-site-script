@@ -160,9 +160,10 @@ wait_for_port() {
   done
 }
 
-# uploads_only_filters REL_PATH — rsync include/exclude args (one per line)
+# only_path_filters REL_PATH — rsync include/exclude args (one per line)
 # that transfer only REL_PATH and its parents.
-uploads_only_filters() {
+uploads_only_filters() { only_path_filters "$@"; }
+only_path_filters() {
   local rel=${1#/} acc="" part
   rel=${rel%/}
   local IFS=/

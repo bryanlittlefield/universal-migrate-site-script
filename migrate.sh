@@ -186,7 +186,7 @@ cleanup() {
   local rc=$?
   [[ ${TUNNEL_OPEN:-false} == true ]] && close_tunnel
   if [[ $MAINT_ACTIVE == true ]]; then
-    warn "Maintenance mode is still ACTIVE for ${local_web_root}. Remove .maintenance (WordPress) or run 'php artisan up' (Laravel) when ready."
+    warn "Maintenance mode is still ACTIVE for ${local_web_root}. Remove ${WP_PATH:-$local_web_root}/.maintenance (WordPress) or run 'php artisan up' (Laravel) when ready."
   fi
   [[ -n $TMP_DIR && -d $TMP_DIR ]] && rm -rf "$TMP_DIR"
   emit_event end "$rc"

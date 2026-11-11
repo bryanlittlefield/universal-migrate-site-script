@@ -611,6 +611,7 @@ cp .env.example .env</code></pre>
               <tr><td>local_scheme</td><td><code>http</code> or <code>https</code></td></tr>
               <tr><td>import_db_name<br>import_db_user<br>import_db_pass</td><td>local database credentials (created if missing)</td></tr>
               <tr><td>platform</td><td><code>auto</code>, <code>wordpress</code> or <code>laravel</code></td></tr>
+              <tr class="tech"><td>sync_path / wp_cli_path / wp_config_path</td><td>Non-standard layouts: sync one folder (e.g. <code>wp-content</code>), the folder WP-CLI runs against, the full path of <code>wp-config.php</code></td></tr>
               <tr class="tech"><td>sync_mode / rsync_mode</td><td><code>full</code>·<code>code</code>·<code>uploads</code> / <code>sync</code>·<code>ignore-existing</code>·<code>mirror</code></td></tr>
               <tr class="tech"><td>skip_* / run_*</td><td>per-step toggles, same names as the old script</td></tr>
             </table>

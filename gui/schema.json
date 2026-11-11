@@ -31,7 +31,13 @@
          "help": "Whether the live site uses https. If it differs from the local scheme, URLs are rewritten from one to the other too."},
         {"key": "ssh_strict_host_key", "label": "Host key checking", "type": "select", "advanced": true,
          "options": [{"value": "accept-new", "label": "accept-new (trust on first use)"}, {"value": "yes", "label": "yes (must already be in known_hosts)"}, {"value": "no", "label": "no (never check; not recommended)"}],
-         "help": "accept-new stores the server's key the first time and refuses if it ever changes. Needs OpenSSH 7.6 or newer; use yes or no on older clients."}
+         "help": "accept-new stores the server's key the first time and refuses if it ever changes. Needs OpenSSH 7.6 or newer; use yes or no on older clients."},
+        {"key": "sync_path", "label": "Only sync this folder", "type": "text", "advanced": true, "placeholder": "wp-content",
+         "help": "For hosts with a non-standard WordPress layout, where core is managed by the host. Copies just this folder (relative to the remote and the local web root) instead of the whole install. The exclude list, What to copy and How to copy still apply inside it, and Clear local web root only empties this folder. Leave empty to sync everything."},
+        {"key": "wp_cli_path", "label": "WP-CLI folder", "type": "text", "platform": "wordpress", "advanced": true, "placeholder": "/srv/htdocs/__wp__",
+         "help": "Absolute path on this machine that every WP-CLI command runs against (wp --path): the folder that contains wp-includes. Leave empty to use the local web root. Maintenance mode writes its .maintenance file here."},
+        {"key": "wp_config_path", "label": "wp-config.php path", "type": "text", "platform": "wordpress", "advanced": true, "placeholder": "/srv/htdocs/wp-config.php",
+         "help": "Absolute path of the local wp-config.php when it is not in the local web root. Database credentials, URLs and the host clean-up are written to this file, and WP-CLI is told to load it. Leave empty for <local web root>/wp-config.php."}
       ]
     },
     {

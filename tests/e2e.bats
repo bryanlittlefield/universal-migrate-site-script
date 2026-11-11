@@ -196,6 +196,51 @@ migrate() { bash "$REPO_ROOT/migrate.sh" --env "$T/test.env" --plain "$@"; }
   ! ls "$T/dumps"/localdb-preserved-* 2>/dev/null
 }
 
+@test "non-standard layout: sync_path, wp_cli_path and wp_config_path" {
+  mkdir -p "$T/www/wp-content" "$T/core/wp-includes" "$T/conf"
+  : > "$T/www/local-only.txt"
+  cat > "$T/conf/wp-config.php" <<'CFG'
+<?php
+define( 'DB_NAME', 'olddb' );
+define( 'WPE_APIKEY', 'abc' );
+/* That's all, stop editing! */
+CFG
+  write_env auto remote "sync_path='/wp-content/'" "wp_cli_path='$T/core/'" "wp_config_path='$T/conf/wp-config.php'" \
+    "run_clear_web_root='true'"
+  run migrate --yes
+  echo "$output"
+  [ "$status" -eq 0 ]
+  [[ $output == *"Platform:  wordpress"* ]]
+
+  # only the folder is synced, with the excludes ahead of the includes
+  grep -q "rsync .*--exclude-from=.* --include=/wp-content/ --include=/wp-content/\*\* --exclude=\* " "$STUB_LOG"
+  # clear-web-root is limited to that folder
+  [ -f "$T/www/local-only.txt" ]
+  [[ $output == *"Cleared $T/www/wp-content"* ]]
+  # every WP-CLI call targets the core folder and the custom config file
+  [ -z "$(grep '^wp ' "$STUB_LOG" | grep -v -- "--path=$T/core ")" ]
+  grep -q "^wp-env WP_CONFIG_PATH=$T/conf/wp-config.php$" "$STUB_LOG"
+  grep -q "^wp .*config set DB_NAME localdb --quiet --config-file=$T/conf/wp-config.php$" "$STUB_LOG"
+  [ -z "$(grep '^wp ' "$STUB_LOG" | grep -v ' config ' | grep -- '--config-file')" ]
+  # host-cleanup edits the custom file; maintenance mode used the core folder
+  [ -z "$(grep 'WPE_APIKEY' "$T/conf/wp-config.php")" ]
+  [[ $output == *"Maintenance mode enabled ($T/core/.maintenance)"* ]]
+  [ ! -e "$T/core/.maintenance" ]
+  [ ! -e "$T/www/.maintenance" ]
+}
+
+@test "sync_path and the wp paths are validated" {
+  make_wp_site
+  write_env wordpress remote "sync_path='../etc'"
+  run migrate --yes
+  [ "$status" -ne 0 ]
+  [[ $output == *"sync_path must be a folder inside the web root"* ]]
+  write_env wordpress remote "wp_config_path='conf/wp-config.php'"
+  run migrate --yes
+  [ "$status" -ne 0 ]
+  [[ $output == *"wp_config_path must be an absolute path"* ]]
+}
+
 @test "--dry-run changes nothing" {
   make_wp_site
   write_env wordpress remote

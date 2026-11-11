@@ -136,3 +136,25 @@ teardown() { rm -rf "$T"; }
   [ "$status" -ne 0 ]
   rm -rf "$bin"
 }
+
+@test "only_path_filters: real rsync copies just that folder, excludes and --delete stay scoped" {
+  command -v rsync >/dev/null || skip "rsync not installed"
+  mkdir -p "$T/src/wp-content/cache" "$T/src/wp-content/plugins/a" "$T/src/wp-content/uploads" \
+           "$T/src/wp-includes" "$T/dst/wp-includes" "$T/dst/wp-content/plugins/old"
+  touch "$T/src/wp-config.php" "$T/src/index.php" "$T/src/wp-includes/x.php" "$T/src/wp-content/cache/c" \
+        "$T/src/wp-content/plugins/a/a.php" "$T/src/wp-content/uploads/u.jpg" \
+        "$T/dst/wp-includes/keep.php" "$T/dst/local-only.txt" "$T/dst/wp-content/plugins/old/old.php"
+  local -a opts=(-rlpt --delete --exclude=/wp-content/cache/ --exclude=/wp-content/uploads/)
+  local f
+  while IFS= read -r f; do opts+=("$f"); done < <(only_path_filters wp-content)
+  rsync "${opts[@]}" "$T/src/" "$T/dst/"
+  [ -f "$T/dst/wp-content/plugins/a/a.php" ]          # inside the folder: copied
+  [ ! -e "$T/dst/wp-content/plugins/old" ]            # mirror deletes inside the folder
+  [ ! -e "$T/dst/wp-content/cache/c" ]                # excludes still apply
+  [ ! -e "$T/dst/wp-content/uploads/u.jpg" ]
+  [ ! -e "$T/dst/wp-config.php" ]                     # outside the folder: not copied
+  [ ! -e "$T/dst/index.php" ]
+  [ ! -e "$T/dst/wp-includes/x.php" ]
+  [ -f "$T/dst/wp-includes/keep.php" ]                # ...and never deleted
+  [ -f "$T/dst/local-only.txt" ]
+}

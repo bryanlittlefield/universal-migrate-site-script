@@ -2,7 +2,7 @@
 # steps/local-hardening.sh — settings that make the copy behave like a local/dev site.
 
 step_local_hardening() {
-  [[ -f $local_web_root/wp-config.php ]] || { error "wp-config.php not found in ${local_web_root}"; return 1; }
+  [[ -f $WP_CONFIG_FILE ]] || { error "wp-config.php not found: ${WP_CONFIG_FILE}"; return 1; }
   local p dbg=false email
   if [[ -n $wp_environment_type ]]; then
     wpcli config set WP_ENVIRONMENT_TYPE "$wp_environment_type" --quiet || return 1

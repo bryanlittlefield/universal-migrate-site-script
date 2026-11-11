@@ -2,9 +2,9 @@
 # steps/host-cleanup.sh — remove WP Engine settings, host mu-plugins and cache drop-ins.
 
 step_host_cleanup() {
-  local cfg="$local_web_root/wp-config.php" pat removed=0 n entry path
+  local cfg=$WP_CONFIG_FILE pat removed=0 n entry path
   if [[ ! -f $cfg ]]; then
-    warn "No wp-config.php in ${local_web_root}; skipping config cleanup."
+    warn "No wp-config.php at ${cfg}; skipping config cleanup."
   elif grep -qE 'WPE_|PWP_|wpengine|is_wpe' "$cfg"; then
     info "WP Engine settings detected in wp-config.php"
     if is_dry_run; then

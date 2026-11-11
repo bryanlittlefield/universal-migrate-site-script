@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 printf 'wp %s\n' "$*" >> "${STUB_LOG:-/dev/null}"
+[[ -n ${WP_CONFIG_PATH:-} ]] && printf 'wp-env WP_CONFIG_PATH=%s\n' "$WP_CONFIG_PATH" >> "${STUB_LOG:-/dev/null}"
 args=" $* "
 case "$args" in
   *" core is-installed --network "*) exit "${STUB_WP_MULTISITE_EXIT:-1}" ;;
