@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- `sync-files` passes `--omit-dir-times`, so a local web root the account can write to but doesn't own no longer fails with `failed to set times on "…/.": Operation not permitted` (rsync exit 23). File modification times are still preserved.
+
 ## 1.2.0 — 2026-10-20
 
 ### Added

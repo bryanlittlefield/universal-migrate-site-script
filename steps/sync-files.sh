@@ -4,7 +4,10 @@
 step_sync_files() {
   require_vars remote_ssh_host remote_ssh_user remote_ssh_web_root local_web_root || return 1
   run_cmd mkdir -p "$local_web_root" || return 1
-  local -a opts=(-rlpt --human-readable --stats --partial
+  # --omit-dir-times: file mtimes drive rsync's quick check and are kept (-t);
+  # directory mtimes don't, and setting them fails (exit 23) when the local
+  # account can write to but doesn't own a directory, as on shared hosts.
+  local -a opts=(-rlpt --omit-dir-times --human-readable --stats --partial
                  --exclude=/.maintenance --exclude=.git/ --exclude='*.sql' --exclude='*.sql.gz')
   local rsync_log="$log_dir/rsync-${RUN_TAG}.log" rc=0 f
 

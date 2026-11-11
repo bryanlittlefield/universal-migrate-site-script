@@ -87,6 +87,7 @@ migrate() { bash "$REPO_ROOT/migrate.sh" --env "$T/test.env" --plain "$@"; }
   grep -q "rsync .* deploy@remote.example.com:/var/www/html/ $T/www/" "$STUB_LOG"
   grep -q "rsync .*-e ssh -p 2222 " "$STUB_LOG"
   grep -q 'rsync .*--exclude=/.maintenance' "$STUB_LOG"
+  grep -q 'rsync .*--omit-dir-times' "$STUB_LOG"
 
   # database export over ssh: MariaDB flags, password not on the command line, excludes resolved
   grep -q 'ssh .*mysqldump --skip-ssl' "$STUB_LOG"
