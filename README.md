@@ -242,7 +242,7 @@ after_run_hook='hooks/default/after-run.sh'
 
 **`tunnel`** (default): the script opens `ssh -L` from a free local port to `export_db_host:export_db_port` *as seen from the remote server* and runs the **local** `mysqldump` through it. Use this when the remote has no `mysqldump`, or when the DB lives on a separate host the web server can reach (set `export_db_host` to that host).
 
-**`remote`**: the script runs `mysqldump` **on the remote server** and streams the output back over the same SSH connection, gzip-compressed when both ends have gzip. No temp files are written on the remote. Usually the fastest option for large databases.
+**`remote`**: the script runs `mysqldump` **on the remote server** and streams the output back over the same SSH connection, gzip-compressed when both ends have gzip. No temp files are written on the remote. Usually the fastest option for large databases. Locally the raw (gzipped) download is saved next to the dump and cleaned up in a second pass, so only `ssh` runs while the data transfers; plan for roughly the compressed size of free disk on top of the dump itself.
 
 In both cases the dump is filtered on the fly: `DEFINER` clauses are stripped, the MariaDB "sandbox mode" line is removed, and collations are mapped when `db_fix_collation` applies. The remote password is passed through `stdin`/`MYSQL_PWD`, the local one through a temporary `--defaults-extra-file`; neither appears in `ps`.
 

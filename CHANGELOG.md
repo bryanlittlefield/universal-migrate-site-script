@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### Changed
+- The database export downloads the raw dump to `<dump>.raw[.gz]` first and filters it (DEFINERs, collations) in a second pass instead of streaming through `gunzip | sed | pv`. Only `ssh` (or the local `mysqldump` for the tunnel method) runs during the transfer, which keeps the run under per-account process limits on managed hosts (`Process count of N exceeded maximum allowed value of 25`).
+
 ### Fixed
 - `sync-files` passes `--omit-dir-times`, so a local web root the account can write to but doesn't own no longer fails with `failed to set times on "…/.": Operation not permitted` (rsync exit 23). File modification times are still preserved.
 

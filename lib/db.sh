@@ -200,18 +200,22 @@ remote_query() {
   fi
 }
 
-# remote_dump MYSQLDUMP_ARGS... — filtered SQL on stdout, via whichever method.
-remote_dump() {
+# remote_dump_raw MYSQLDUMP_ARGS... — the unfiltered dump on stdout, gzipped
+# when REMOTE_COMPRESS is true (remote method only). Filtering happens later in
+# a separate pass so only ssh (or mysqldump) runs during the long transfer.
+remote_dump_raw() {
   if [[ $db_export_method == tunnel ]]; then
-    mysqldump --defaults-extra-file="$TUNNEL_CNF" ${TUNNEL_DUMP_FLAGS[@]+"${TUNNEL_DUMP_FLAGS[@]}"} "$@" | dump_filter
+    mysqldump --defaults-extra-file="$TUNNEL_CNF" ${TUNNEL_DUMP_FLAGS[@]+"${TUNNEL_DUMP_FLAGS[@]}"} "$@"
   else
     local cmd a
     cmd="mysqldump ${REMOTE_DUMP_FLAGS} -u $(shell_quote "$export_db_user") -h $(shell_quote "$export_db_host") -P $(shell_quote "$export_db_port")"
     for a in "$@"; do cmd+=" $(shell_quote "$a")"; done
-    if [[ ${REMOTE_COMPRESS:-false} == true ]]; then
-      ssh_run_secret "$export_db_pass" "$cmd | gzip -c" | gunzip -c | dump_filter
-    else
-      ssh_run_secret "$export_db_pass" "$cmd" | dump_filter
-    fi
+    [[ ${REMOTE_COMPRESS:-false} == true ]] && cmd+=" | gzip -c"
+    ssh_run_secret "$export_db_pass" "$cmd"
   fi
+}
+
+# remote_dump_is_gzip — whether remote_dump_raw output is gzipped.
+remote_dump_is_gzip() {
+  [[ $db_export_method != tunnel && ${REMOTE_COMPRESS:-false} == true ]]
 }

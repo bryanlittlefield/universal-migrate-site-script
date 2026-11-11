@@ -124,19 +124,41 @@ db_export_to() {
     base+=("${extra[@]}")
   fi
 
+  EXPORT_BASE_OPTS=("${base[@]}")
+  EXPORT_IGNORE_OPTS=(${ignore_opts[@]+"${ignore_opts[@]}"})
+
   if is_dry_run; then
     info "[dry-run] would export '${export_db_name}' (${db_export_method}) to ${out} with ${#ignore_opts[@]} table(s) data-excluded, then back up, drop and re-import '${import_db_name}'"
     return 0
   fi
   info "Exporting '${export_db_name}' (${db_export_method} method) to ${out}"
-  if ((${#ignore_opts[@]} == 0)); then
-    remote_dump "${base[@]}" "$export_db_name" | maybe_pv > "$out"
+  # Download to a raw file first, then filter it in a second pass. Streaming
+  # through gunzip/sed/pv kept ~10 processes alive for the whole transfer,
+  # which trips per-account process limits on some managed hosts.
+  local raw="${out}.raw"
+  remote_dump_is_gzip && raw+=".gz"
+  if pv_enabled; then
+    export_raw_dump | pv > "$raw"
   else
-    {
-      remote_dump "${base[@]}" --no-data --skip-triggers "$export_db_name" || exit 1
-      remote_dump "${base[@]}" --no-create-info "${ignore_opts[@]}" "$export_db_name" || exit 1
-    } | maybe_pv > "$out"
-  fi || { error "Database export failed"; rm -f -- "$out"; return 1; }
+    export_raw_dump > "$raw"
+  fi || { error "Database export failed"; rm -f -- "$raw" "$out"; return 1; }
+  if remote_dump_is_gzip; then
+    gunzip -c -- "$raw" | dump_filter > "$out"
+  else
+    dump_filter < "$raw" > "$out"
+  fi || { error "Could not process the downloaded dump ${raw}"; rm -f -- "$out"; return 1; }
+  rm -f -- "$raw"
   [[ -s $out ]] || { error "The export produced an empty file: ${out}"; return 1; }
   ok "Export complete: ${out} ($(($(file_size "$out") / 1024 / 1024))MB)"
+}
+
+# export_raw_dump — the raw remote dump on stdout: everything in one dump, or
+# structure first and then data without the excluded tables (EXPORT_IGNORE_OPTS).
+export_raw_dump() {
+  if ((${#EXPORT_IGNORE_OPTS[@]} == 0)); then
+    remote_dump_raw "${EXPORT_BASE_OPTS[@]}" "$export_db_name"
+  else
+    remote_dump_raw "${EXPORT_BASE_OPTS[@]}" --no-data --skip-triggers "$export_db_name" &&
+      remote_dump_raw "${EXPORT_BASE_OPTS[@]}" --no-create-info "${EXPORT_IGNORE_OPTS[@]}" "$export_db_name"
+  fi
 }

@@ -173,11 +173,12 @@ uploads_only_filters() {
   printf -- '--include=%s/**\n--exclude=*\n' "$acc"
 }
 
+# pv_enabled — true when pv is installed and output is interactive.
+pv_enabled() {
+  have_cmd pv && ! is_true "${plain_output:-false}" && [[ ${STDOUT_IS_TTY:-false} == true ]]
+}
+
 # maybe_pv ARGS... — pipe through pv when available and output is interactive.
 maybe_pv() {
-  if have_cmd pv && ! is_true "${plain_output:-false}" && [[ ${STDOUT_IS_TTY:-false} == true ]]; then
-    pv "$@"
-  else
-    cat
-  fi
+  if pv_enabled; then pv "$@"; else cat; fi
 }

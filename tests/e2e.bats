@@ -97,6 +97,7 @@ migrate() { bash "$REPO_ROOT/migrate.sh" --env "$T/test.env" --plain "$@"; }
   grep -q -- '--ignore-table=remotedb.wp_wfhits' "$STUB_LOG"
   grep -q -- '--no-data --skip-triggers' "$STUB_LOG"
   grep -q '| gzip -c' "$STUB_LOG"
+  ! compgen -G "$T/dumps/*.raw*" >/dev/null   # raw download removed after filtering
   [[ $output == *"has no such table"* ]]
   ls "$T/dumps"/remotedb-*.sql >/dev/null
   [ -s "$T/dumps"/remotedb-*.sql ]
