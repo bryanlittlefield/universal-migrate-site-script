@@ -7,6 +7,7 @@
 - `use_pv` (default `true`, also in the GUI under Behaviour): set `false` to turn off the `pv` progress bars for the database export and import without losing colours. Each bar is an extra process, which matters on hosts that cap processes per account.
 
 ### Changed
+- Docs: the README (contents list, a *Non-standard WordPress layouts* section, new troubleshooting entries), the Pages guide and the GUI's built-in guide now describe the download-then-filter export, `use_pv`, `sync_path`, `wp_cli_path` and `wp_config_path`.
 - The database export downloads the raw dump to `<dump>.raw[.gz]` first and filters it (DEFINERs, collations) in a second pass instead of streaming through `gunzip | sed | pv`. Only `ssh` (or the local `mysqldump` for the tunnel method) runs during the transfer, which keeps the run under per-account process limits on managed hosts (`Process count of N exceeded maximum allowed value of 25`).
 
 ### Fixed

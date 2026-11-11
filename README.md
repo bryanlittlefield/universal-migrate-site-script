@@ -13,6 +13,8 @@ It is a ground-up rewrite of [builtmighty/migrate-site-script](https://github.co
 ./gui.sh                    # or do all of it from a local web GUI
 ```
 
+**Contents:** [Requirements](#requirements) · [Quick start](#quick-start) · [GUI](#gui) · [How a run works](#how-a-run-works) · [Command line](#command-line) · [Configuration](#configuration) · [Non-standard WordPress layouts](#non-standard-wordpress-layouts) · [Database export methods](#database-export-methods) · [List files](#the-list-files-in-config) · [Safety](#safety) · [Troubleshooting](#troubleshooting) · [Upgrading](#upgrading-from-migrate-site-script) · [Development](#development)
+
 ## Requirements
 
 | Where | Needed | Notes |
@@ -37,6 +39,8 @@ $EDITOR .env            # remote server, remote DB, local web root, local DB, do
 ./migrate.sh            # run it
 ```
 
+Prefer a form to a text editor? `./gui.sh` creates and edits the same env files in the browser, tests the connections and starts the run (see [GUI](#gui)).
+
 Every run writes `logs/migrate-<timestamp>.log` (everything), `logs/rsync-<timestamp>.log` (every transferred file), `logs/migrate-report-<timestamp>.txt` (one line per step with real pass/fail and timings) and `logs/migrate-<timestamp>.events` (tab-separated, machine-readable progress: start, plan, checks, step start/end/skip, end; the GUI's run history).
 
 ## GUI
@@ -48,7 +52,7 @@ Every run writes `logs/migrate-<timestamp>.log` (everything), `logs/rsync-<times
 
 A local web interface for everything above. It needs `python3` 3.8+ and nothing else: no packages, no build step, nothing hosted. The page is plain HTML/JS served by a single standard-library Python file, [gui/server.py](gui/server.py).
 
-- **Setup wizard** for the env file: remote server, remote database, local site, local database, WordPress/Laravel and behaviour settings, then a review page. Every field has an ⓘ tooltip with the `.env` key and the default. Visual helpers include a live diagram of where files and the database go, a preview of the URL rewrite, SSH key suggestions from `~/.ssh` with permission warnings, and warnings for risky choices (mirror mode, backup off).
+- **Setup wizard** for the env file: remote server, remote database, local site, local database, WordPress/Laravel and behaviour settings, then a review page. Every key in `.env.example` can be set here: less common ones sit under **Advanced** in each section (the [non-standard layout](#non-standard-wordpress-layouts) settings are under Remote server → Advanced), and a key without its own field still shows up under Behaviour → Advanced. Every field has an ⓘ tooltip with the `.env` key and the default. Visual helpers include a live diagram of where files and the database go, a preview of the URL rewrite, SSH key suggestions from `~/.ssh` with permission warnings, and warnings for risky choices (mirror mode, backup off).
 - **Connection tests** before you run: SSH login + remote web root, remote database (through the tunnel or on the server, as configured), local database, local web root and local tools. Tests use the values on screen, saved or not, and show a *likely cause* for common failures.
 - **Several migrations**: `.env` is *default*, the others are `sites/<name>.env` (create, copy, delete). Each has its own steps, hooks and run history, and you can come back to any of them later.
 - **Steps & hooks**: turn steps on or off (written as `skip_*` / `run_*`) and edit the **before-run** and **after-run** hooks (see below) with templates.
@@ -82,12 +86,12 @@ Live copy: https://bryanlittlefield.github.io/universal-migrate-site-script/
 | Step id | Default | Platform | What it does |
 |---|---|---|---|
 | `before-run` | run when set | all | Runs `before_run_hook` (see *Hooks*). Skipped when it is empty. |
-| `clear-web-root` | **opt-in** | all | Deletes everything inside `local_web_root` (dotfiles included). Refuses `/`, top-level dirs, `$HOME` and the script's own directory. Interactive runs must type the directory name. |
-| `maintenance-on` | run | WP, Laravel | Writes a non-expiring `.maintenance` file / `artisan down`. Skipped automatically if the web root was cleared. |
-| `sync-files` | run | all | `rsync` from the remote web root, honouring `config/rsync-exclude.txt`, `sync_mode` and `rsync_mode`. rsync exit 23/24 (vanished or unreadable files) is a warning, not a failure. |
-| `migrate-db` | run | all | Lists remote tables, exports (two passes when tables are data-excluded: structure of everything + data of the rest), **backs up the local DB**, saves any `db_preserve_tables`, drops all local tables and views, imports with session-level bulk settings, restores the preserved tables. Shows table counts. |
+| `clear-web-root` | **opt-in** | all | Deletes everything inside `local_web_root` (dotfiles included), or only inside the `sync_path` folder when that is set. Refuses `/`, top-level dirs, `$HOME` and the script's own directory. Interactive runs must type the directory name. |
+| `maintenance-on` | run | WP, Laravel | Writes a non-expiring `.maintenance` file (in `wp_cli_path` when set) / `artisan down`. Skipped automatically if the web root was cleared, or with a warning if the WordPress folder is read-only. |
+| `sync-files` | run | all | `rsync` from the remote web root, honouring `config/rsync-exclude.txt`, `sync_path`, `sync_mode` and `rsync_mode`. File times are kept, directory times are not (`--omit-dir-times`). rsync exit 23/24 (vanished or unreadable files) is a warning, not a failure. |
+| `migrate-db` | run | all | Lists remote tables, downloads the export (two passes when tables are data-excluded: structure of everything + data of the rest), cleans the downloaded dump, **backs up the local DB**, saves any `db_preserve_tables`, drops all local tables and views, imports with session-level bulk settings, restores the preserved tables. Shows table counts. |
 | `app-config` | run | WP, Laravel | WordPress: writes `DB_*`, `WP_HOME`, `WP_SITEURL`, runs `wp search-replace` for `www.` variant → domain → extra pairs → scheme (if `remote_scheme` ≠ `local_scheme`), handles multisite (`--network`, `DOMAIN_CURRENT_SITE`). Laravel: updates `APP_URL`, `APP_ENV`, `APP_DEBUG`, `DB_*` in `.env`, generates `APP_KEY` if empty. |
-| `host-cleanup` | run | WP | If `wp-config.php` contains WP Engine markers: backs it up and removes the lines matched by `config/wpe-config-patterns.txt`. Removes the mu-plugins in `config/host-mu-plugins.txt` and the `object-cache.php` / `advanced-cache.php` drop-ins. |
+| `host-cleanup` | run | WP | If `wp-config.php` (or `wp_config_path`) contains WP Engine markers: backs it up and removes the lines matched by `config/wpe-config-patterns.txt`. Removes the mu-plugins in `config/host-mu-plugins.txt` and the `object-cache.php` / `advanced-cache.php` drop-ins. |
 | `kinsta-plugins` | **opt-in** | WP | Downloads and unzips Kinsta's MU plugins. Only when the destination is Kinsta. |
 | `local-hardening` | run | WP | `WP_ENVIRONMENT_TYPE`, `WP_DEBUG`, `blog_public=0`, deactivates plugins in `config/host-plugins-deactivate.txt`, optionally creates or updates a local admin user. |
 | `cache-refresh` | run | WP, Laravel | `wp rewrite flush`, `wp cache flush`, `wp transient delete --all` (+ Kinsta purge if available) / `artisan optimize:clear`. |
@@ -180,6 +184,7 @@ All settings live in `.env`; see [.env.example](.env.example) for every key with
 | `db_transfer_compress` | `auto` | gzip the stream for the remote method |
 | `export_db_ssl_flag`, `import_db_ssl_flag` | auto | Override the detected client SSL flag if needed |
 | `mysqldump_extra_opts` | | e.g. `--routines --events` |
+| `export_db_filename` | `dumps/<db>-<ts>.sql` | Where the downloaded dump is saved |
 
 ### Local server and database
 
@@ -193,6 +198,7 @@ All settings live in `.env`; see [.env.example](.env.example) for every key with
 | `db_fix_collation` | `auto` | Map `utf8mb4_0900_*` (MySQL 8) collations when the local server is MariaDB or MySQL < 8 |
 | `db_preserve_tables` | | Local tables whose **data** survives the import, space or comma separated, wildcards allowed (`wp_options`, `*_options wp_users`). Saved before the drop, restored after the import; only their structure is taken from the remote |
 | `keep_dump` | `true` | Keep the downloaded dump in `dumps/` |
+| `local_db_backup_filename` | `dumps/<db>-backup-<ts>.sql.gz` | Where the local backup is saved |
 
 ### Files
 
@@ -219,6 +225,13 @@ All settings live in `.env`; see [.env.example](.env.example) for every key with
 | `wp_config_path` | `local_web_root/wp-config.php` | Full path to the local `wp-config.php`. Used for the config edits and passed to WP-CLI (`WP_CONFIG_PATH`, `--config-file`) |
 | `wp_cli_extra_opts` | | e.g. `--skip-plugins --skip-themes` if a plugin fatals under WP-CLI |
 | `host_mu_plugins_file_path`, `host_plugins_deactivate_file_path`, `wpe_config_patterns_file_path` | `config/…` | What host-cleanup / local-hardening remove or deactivate |
+
+### Laravel and Kinsta
+
+| Key | Default | Meaning |
+|---|---|---|
+| `laravel_app_env`, `laravel_app_debug` | `local`, `true` | Written to the local Laravel `.env` as `APP_ENV` / `APP_DEBUG` |
+| `kinsta_mu_plugins_url`, `kinsta_force_reinstall` | Kinsta's zip, `false` | Only for the opt-in `kinsta-plugins` step, when the copy is going **to** Kinsta |
 
 ### Behaviour and steps
 
@@ -248,13 +261,32 @@ before_run_hook='docker compose up -d'
 after_run_hook='hooks/default/after-run.sh'
 ```
 
+## Non-standard WordPress layouts
+
+Some managed hosts keep WordPress core themselves: the web root holds `wp-content` and `wp-config.php`, while core sits in another folder (often read-only or a symlink). Three settings handle that. All are empty by default, which means the standard layout.
+
+| Setting | Set it to | Example |
+|---|---|---|
+| `sync_path` | The folder to sync, relative to the web root on **both** sides. Everything outside it is left alone | `wp-content` |
+| `wp_cli_path` | The local folder that contains `wp-includes`; every WP-CLI command uses it | `/srv/htdocs/__wp__` |
+| `wp_config_path` | The full path of the local `wp-config.php`, if it is not in `local_web_root` | `/srv/htdocs/wp-config.php` |
+
+What changes when they are set:
+
+- The exclude list, `sync_mode=code` and `rsync_mode=mirror` keep working inside `sync_path`; mirror never deletes anything outside it. `sync_mode=uploads` still copies only the uploads folder.
+- `clear-web-root` empties only the `sync_path` folder.
+- Maintenance mode writes `.maintenance` into `wp_cli_path`, where WordPress looks for it. If that folder is read-only the step warns and moves on.
+- Database credentials, URLs and the WP Engine clean-up are written to `wp_config_path`, and WP-CLI is told to load that file.
+
+Keep `local_web_root` (and `remote_ssh_web_root`) pointing at the folder that contains `wp-content`. Run `./migrate.sh --check` and a `--dry-run` first: the preflight reports a `wp_cli_path` or `wp_config_path` that does not exist.
+
 ## Database export methods
 
 **`tunnel`** (default): the script opens `ssh -L` from a free local port to `export_db_host:export_db_port` *as seen from the remote server* and runs the **local** `mysqldump` through it. Use this when the remote has no `mysqldump`, or when the DB lives on a separate host the web server can reach (set `export_db_host` to that host).
 
-**`remote`**: the script runs `mysqldump` **on the remote server** and streams the output back over the same SSH connection, gzip-compressed when both ends have gzip. No temp files are written on the remote. Usually the fastest option for large databases. Locally the raw (gzipped) download is saved next to the dump and cleaned up in a second pass, so only `ssh` runs while the data transfers; plan for roughly the compressed size of free disk on top of the dump itself.
+**`remote`**: the script runs `mysqldump` **on the remote server** and downloads the output over the same SSH connection, gzip-compressed when both ends have gzip. No temp files are written on the remote. Usually the fastest option for large databases. Locally the raw (gzipped) download is saved next to the dump and cleaned up in a second pass, so only `ssh` runs while the data transfers; plan for roughly the compressed size of free disk on top of the dump itself.
 
-In both cases the dump is filtered on the fly: `DEFINER` clauses are stripped, the MariaDB "sandbox mode" line is removed, and collations are mapped when `db_fix_collation` applies. The remote password is passed through `stdin`/`MYSQL_PWD`, the local one through a temporary `--defaults-extra-file`; neither appears in `ps`.
+In both cases the dump is downloaded first and cleaned in a second pass (so few processes run during the transfer): `DEFINER` clauses are stripped, the MariaDB "sandbox mode" line is removed, and collations are mapped when `db_fix_collation` applies. The remote password is passed through `stdin`/`MYSQL_PWD`, the local one through a temporary `--defaults-extra-file`; neither appears in `ps`.
 
 The right SSL flag for each client (`--skip-ssl` for MariaDB and MySQL 5.x clients, `--ssl-mode=…` for MySQL 8) is detected from `mysql --version`; set `export_db_ssl_flag` / `import_db_ssl_flag` to override.
 
@@ -298,6 +330,14 @@ Blank lines and `#` comments are ignored in all of them.
 **The tunnel never comes up** – check `remote_ssh_key` permissions (`chmod 600`), and that the remote host allows TCP forwarding (`AllowTcpForwarding yes`). Switch to `db_export_method=remote` as a workaround.
 
 **Plugin fatal errors during `wp search-replace`** – set `wp_cli_extra_opts='--skip-plugins --skip-themes'`.
+
+**`Process count of N exceeded maximum allowed value of 25`, and the run just stops** – the host caps how many processes one account may run and killed the script. Set `use_pv='false'` (or run with `--plain`) to drop the progress bars, use an SSH key instead of `remote_ssh_pass`, and run while the site is quiet. If the limit is on the remote server, also try `db_transfer_compress='false'` or `db_export_method='tunnel'`. The local database is only touched after the export finishes, so a run killed during the export changes nothing.
+
+**`rsync: failed to set times on "…/.": Operation not permitted`** – the account can write to a folder it does not own. Harmless; current versions no longer set directory times. If you see it for files, or `chmod` errors, add `rsync_extra_opts='--no-perms'` or fix the ownership.
+
+**`Error: Parameter errors: unknown --quiet parameter`** – the host sets `WP_CLI_STRICT_ARGS_MODE`. Update the script: current versions put `--quiet` before the WP-CLI command.
+
+**`wp-config.php not found`, or WP-CLI says "This does not seem to be a WordPress installation"** – the host uses a [non-standard layout](#non-standard-wordpress-layouts): set `wp_config_path` and `wp_cli_path`.
 
 ## Upgrading from migrate-site-script
 

@@ -453,7 +453,7 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 1rem; justify-content: space
 
       <div class="step"><div class="num">1</div><div class="body">
         <div class="head"><h3>Clear local web root</h3><span class="chip id">clear-web-root</span><span class="chip optin">opt-in</span><span class="chip">all platforms</span></div>
-        <p>Deletes everything inside <code>local_web_root</code>, dotfiles included, so the sync starts from nothing. Off by default; interactively you must type the directory name to confirm.</p>
+        <p>Deletes everything inside <code>local_web_root</code> (or only the <code>sync_path</code> folder when that is set), dotfiles included, so the sync starts from nothing. Off by default; interactively you must type the directory name to confirm.</p>
         <div class="tech tech-block"><div class="eyebrow">Under the hood</div><ul>
           <li>Refuses <code>/</code>, <code>.</code>, <code>$HOME</code>, relative paths, anything shallower than two levels, and the script's own directory or any parent of it.</li>
           <li>Runs <code>find "$root" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +</code>, then sets <code>WEB_ROOT_CLEARED</code> so step 2 is skipped automatically.</li>
@@ -465,7 +465,7 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 1rem; justify-content: space
         <div class="head"><h3>Enable maintenance mode (local site)</h3><span class="chip id">maintenance-on</span><span class="chip wp">WordPress</span><span class="chip wp">Laravel</span></div>
         <p>Visitors of the local site see a maintenance notice while files and data are replaced.</p>
         <div class="tech tech-block"><div class="eyebrow">Under the hood</div><ul>
-          <li>WordPress: writes <code>.maintenance</code> containing <code>&lt;?php $upgrading = time(); ?&gt;</code>, which never expires (core's own file expires after 10 minutes, shorter than most syncs). Laravel: <code>php artisan down --retry=60</code>.</li>
+          <li>WordPress: writes <code>.maintenance</code> (into <code>wp_cli_path</code> when set; skipped with a warning if that folder is read-only) containing <code>&lt;?php $upgrading = time(); ?&gt;</code>, which never expires (core's own file expires after 10 minutes, shorter than most syncs). Laravel: <code>php artisan down --retry=60</code>.</li>
           <li>Skipped when the web root was just cleared or does not exist yet. If the run aborts with maintenance still on, the exit message says so.</li>
         </ul></div>
       </div></div>
@@ -474,8 +474,8 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 1rem; justify-content: space
         <div class="head"><h3>Sync files from remote</h3><span class="chip id">sync-files</span><span class="chip">all platforms</span></div>
         <p>Copies the remote web root with rsync, skipping caches, backups, dumps and whatever else is in <code>config/rsync-exclude.txt</code>. Shows a progress bar and writes a per-file log.</p>
         <div class="tech tech-block"><div class="eyebrow">Under the hood</div><ul>
-          <li><code>rsync -rlpt --human-readable --stats --partial --exclude=/.maintenance --exclude=.git/ --exclude='*.sql' --exclude-from=config/rsync-exclude.txt --log-file=logs/rsync-&lt;ts&gt;.log -e "ssh -p &lt;port&gt; [-i key]" user@host:/remote/root/ /local/root/</code></li>
-          <li><code>rsync_mode</code> adds <code>--ignore-existing</code> or <code>--delete</code>; <code>sync_mode=code</code> excludes the uploads dir, <code>uploads</code> includes only it. <code>--info=progress2</code> is used when the terminal and rsync version allow.</li>
+          <li><code>rsync -rlpt --omit-dir-times --human-readable --stats --partial --exclude=/.maintenance --exclude=.git/ --exclude='*.sql' --exclude-from=config/rsync-exclude.txt --log-file=logs/rsync-&lt;ts&gt;.log -e "ssh -p &lt;port&gt; [-i key]" user@host:/remote/root/ /local/root/</code></li>
+          <li><code>rsync_mode</code> adds <code>--ignore-existing</code> or <code>--delete</code>; <code>sync_mode=code</code> excludes the uploads dir, <code>uploads</code> includes only it; <code>sync_path</code> limits the copy to one folder (for example <code>wp-content</code>) with include filters placed after the excludes. <code>--info=progress2</code> is used when the terminal and rsync version allow.</li>
           <li>Exit 23/24 (files vanished or unreadable mid-transfer) is a warning; any other non-zero exit fails the step.</li>
         </ul></div>
       </div></div>
@@ -486,8 +486,8 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 1rem; justify-content: space
         <div class="tech tech-block"><div class="eyebrow">Under the hood</div><ul>
           <li><code>SHOW TABLES</code> first, to expand wildcard excludes into <code>--ignore-table=db.table</code> and to compare counts afterwards.</li>
           <li>One <code>mysqldump</code> pass, or two when tables are excluded: <code>--no-data --skip-triggers</code> for structure, then <code>--no-create-info</code> with the ignores for data.</li>
-          <li>Stream filter: strip <code>DEFINER=…</code> and <code>SQL SECURITY DEFINER</code>, drop the MariaDB sandbox line, map <code>utf8mb4_0900_*</code> collations when the local server needs it.</li>
-          <li>Backup to <code>dumps/&lt;db&gt;-backup-&lt;ts&gt;.sql.gz</code>, drop every table and view listed in <code>information_schema</code>, import wrapped in <code>SET autocommit=0; unique_checks=0; foreign_key_checks=0 … COMMIT</code> with <code>--max-allowed-packet=1G</code> and a <code>pv</code> progress bar.</li>
+          <li>The raw dump is downloaded to <code>dumps/&lt;db&gt;-&lt;ts&gt;.sql.raw[.gz]</code> with only <code>ssh</code> (or the local <code>mysqldump</code>) running, then filtered in a second pass: strip <code>DEFINER=…</code> and <code>SQL SECURITY DEFINER</code>, drop the MariaDB sandbox line, map <code>utf8mb4_0900_*</code> collations when the local server needs it.</li>
+          <li>Backup to <code>dumps/&lt;db&gt;-backup-&lt;ts&gt;.sql.gz</code>, drop every table and view listed in <code>information_schema</code>, import wrapped in <code>SET autocommit=0; unique_checks=0; foreign_key_checks=0 … COMMIT</code> with <code>--max-allowed-packet=1G</code> and a <code>pv</code> progress bar (terminal runs; off with <code>use_pv='false'</code>).</li>
           <li><code>db_preserve_tables</code> (wildcards resolved against the local table list): <code>mysqldump --add-drop-table</code> of those tables before the drop, their names added to the export's <code>--ignore-table</code> list, and the saved SQL replayed after the import.</li>
         </ul></div>
       </div></div>
@@ -584,6 +584,7 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 1rem; justify-content: space
 cd universal-migrate-site-script
 cp .env.example .env</code></pre>
         <p><code>.env</code> is git-ignored. Quote values with single quotes so passwords with special characters survive. An <code>.env</code> from the original migrate-site-script works unchanged.</p>
+        <p>Prefer a form? <code>./gui.sh</code> opens a local web GUI that creates and edits the same env files (<code>.env</code>, or <code>sites/&lt;name&gt;.env</code> for more sites), tests the connections and starts runs. It needs only <code>python3</code>.</p>
       </div></div>
 
       <div class="setup-step"><div class="n">3</div><div class="body">
@@ -647,7 +648,7 @@ cp .env.example .env</code></pre>
     <div class="section-head">
       <span class="eyebrow">Database</span>
       <h2>Where the database comes from</h2>
-      <p>Two ways to get the dump, chosen with <code>db_export_method</code>. Both stream the SQL through the same filter and land it in <code>dumps/</code>. The remote password never appears on a command line.</p>
+      <p>Two ways to get the dump, chosen with <code>db_export_method</code>. Both download the SQL, clean it with the same filter in a second pass and land it in <code>dumps/</code>. The remote password never appears on a command line.</p>
     </div>
 
     <div class="two-col">
@@ -727,7 +728,7 @@ cp .env.example .env</code></pre>
             <text x="330" y="226" text-anchor="middle" class="tech">gzip only if both ends have it</text>
           </svg>
         </div>
-        <figcaption><strong>remote</strong>: mysqldump runs on the server and the compressed output streams straight back. Usually the fastest option for large databases.</figcaption>
+        <figcaption><strong>remote</strong>: mysqldump runs on the server and the compressed output is downloaded over SSH, then cleaned up locally. Usually the fastest option for large databases.</figcaption>
       </figure>
     </div>
 
@@ -844,6 +845,9 @@ cp .env.example .env</code></pre>
       <details><summary>The SSH tunnel never comes up</summary><p>Check the key's permissions (<code>chmod 600</code>) and that the remote allows TCP forwarding (<code>AllowTcpForwarding yes</code> in sshd_config). Switching to <code>db_export_method='remote'</code> avoids the tunnel entirely.</p></details>
       <details><summary>Bad configuration option: StrictHostKeyChecking=accept-new</summary><p>OpenSSH older than 7.6. Set <code>ssh_strict_host_key='yes'</code> and accept the host key once by hand, or <code>'no'</code>.</p></details>
       <details><summary>rsync: --info=progress2 unknown option</summary><p>rsync older than 3.1 (the version bundled with macOS, for example). The progress bar is skipped automatically; install a newer rsync for progress output.</p></details>
+      <details><summary>"Process count of N exceeded maximum allowed value", and the run just stops</summary><p>The host caps how many processes one account may run and killed the script. Set <code>use_pv='false'</code> (or use <code>--plain</code>), log in with an SSH key instead of a password, and run while the site is quiet. Nothing local is changed when this happens during the export.</p></details>
+      <details><summary>rsync: failed to set times on "…/.": Operation not permitted</summary><p>The account can write to a folder it does not own. Harmless: files are still copied, and current versions no longer set directory times.</p></details>
+      <details><summary>wp-config.php not found, or "unknown --quiet parameter"</summary><p>The host keeps WordPress core outside the web root. Set <code>sync_path='wp-content'</code>, <code>wp_cli_path</code> (the folder with <code>wp-includes</code>) and <code>wp_config_path</code>. The <code>--quiet</code> error comes from hosts that set <code>WP_CLI_STRICT_ARGS_MODE</code>; update the script.</p></details>
       <details><summary>A plugin fatals during wp search-replace</summary><p>Set <code>wp_cli_extra_opts='--skip-plugins --skip-themes'</code>.</p></details>
       <details><summary>The HTTP check warns but the site works in the browser</summary><p>The local domain probably does not resolve from the machine running the script (a container, for instance). It is a warning, not a failure; set <code>verify_http='false'</code> to silence it.</p></details>
     </div>
