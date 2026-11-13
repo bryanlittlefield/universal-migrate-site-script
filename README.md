@@ -2,7 +2,7 @@
 
 Pull a **WordPress** or **Laravel** site, files and database, from a remote server down to the machine the script runs on, then make it work on a local domain.
 
-**Visual guide with flowcharts and a setup walkthrough:** https://bryanlittlefield.github.io/universal-migrate-site-script/
+**Documentation site:** https://bryanlittlefield.github.io/universal-migrate-site-script/ · [CLI guide](https://bryanlittlefield.github.io/universal-migrate-site-script/cli.html) with flowcharts and a setup walkthrough · [GUI guide](https://bryanlittlefield.github.io/universal-migrate-site-script/gui.html) with a screenshot tour
 
 It is a ground-up rewrite of [builtmighty/migrate-site-script](https://github.com/builtmighty/migrate-site-script) with the same `.env` variable names and step order, so an existing `.env` keeps working. See [CHANGELOG.md](CHANGELOG.md) for what was fixed and added.
 
@@ -59,15 +59,21 @@ A local web interface for everything above. It needs `python3` 3.8+ and nothing 
 - **Runs**: migration, dry run or check, with per-run step selection and the equivalent command line. A live page shows a progress bar, a timeline with per-step timers, rsync's file count, the streaming console and a Stop button (Ctrl-C semantics: the cleanup trap still runs).
 - **History and logs**: every run of a migration, terminal runs included, with the full log, report, rsync file list and events. A log-folder browser with line filtering and downloads covers older files.
 
-It binds to 127.0.0.1 only and requires the per-launch token from the printed URL on every API call. Requests with a foreign `Host` header are rejected (DNS rebinding). For a remote box, tunnel it: `ssh -L 8765:127.0.0.1:8765 you@box`. The full user guide is built into the GUI (**User guide** in the sidebar).
+It binds to 127.0.0.1 only and requires the per-launch token from the printed URL on every API call. Requests with a foreign `Host` header are rejected (DNS rebinding). For a remote box, tunnel it: `ssh -L 8765:127.0.0.1:8765 you@box`. The full user guide is built into the GUI (**User guide** in the sidebar), and the [GUI guide](https://bryanlittlefield.github.io/universal-migrate-site-script/gui.html) on the documentation site walks through it with screenshots.
 
 The GUI only writes env files and calls `migrate.sh`. Saving changes only the lines that changed, so comments and hand edits survive, and everything it does can be repeated from the command line.
 
 ## Documentation site
 
-[`docs/index.html`](docs/index.html) is a single-page visual guide: flowcharts of a run and of the per-step logic, the two database export methods, a five-step setup walkthrough, the CLI cheat sheet and troubleshooting. A **Technical details** switch in its top bar reveals the exact commands, functions and files behind each section; add `#tech` to the URL to open it that way.
+The [`docs/`](docs/) folder is a three-page site, served by GitHub Pages:
 
-It is plain HTML with no build step and is served by GitHub Pages from the `docs/` folder. To enable it on a fork: repository Settings → Pages → Deploy from a branch → `main` / `/docs`, or
+| Page | What it is |
+|---|---|
+| [`docs/index.html`](docs/index.html) | Landing page: what the tool does, the stages of a run, a CLI/GUI comparison, and two large buttons to pick a guide. |
+| [`docs/cli.html`](docs/cli.html) | Command-line guide: flowcharts of a run and of the per-step logic, every step, the two database export methods, a five-step setup walkthrough, the flag cheat sheet, safety and troubleshooting. A **Technical details** switch in its top bar reveals the exact commands, functions and files behind each section; add `#tech` to the URL to open it that way. |
+| [`docs/gui.html`](docs/gui.html) | GUI guide: how to start it, a screenshot tour (create a migration, setup wizard, connection tests, steps and hooks, run dialog, live progress, history and logs), the GUI-to-CLI mapping, security and troubleshooting. |
+
+It is plain HTML with no build step. The pages share `docs/assets/site.css` and `docs/assets/site.js`; the GUI screenshots are in `docs/img/` (a light and a dark capture of each, taken against a demo site). To enable the site on a fork: repository Settings → Pages → Deploy from a branch → `main` / `/docs`, or
 
 ```bash
 gh api -X POST repos/<owner>/<repo>/pages -f 'source[branch]=main' -f 'source[path]=/docs'
@@ -388,8 +394,8 @@ gui/static/         GUI page (index.html, app.js, app.css), no build step
 sites/, hooks/      GUI-created env files and hook scripts (git-ignored)
 config/*.txt        editable lists
 tests/              bats suites, stub binaries in tests/stubs/bin, fixtures
-docs/               the GitHub Pages guide (index.html, no build step)
-.github/workflows/  CI: shellcheck + bats on Ubuntu and macOS
+docs/               the GitHub Pages site: index.html (landing), cli.html, gui.html, assets/, img/ (no build step)
+.github/workflows/  CI: shellcheck on Ubuntu; bats and the GUI tests on Ubuntu and macOS
 ```
 
 Adding a step: write `step_<name>()` in `steps/<name>.sh`, source it in `migrate.sh`, add a `register_step` line. The runner handles prompting, skipping, timing and reporting. Use `run_cmd` for anything that changes state so `--dry-run` works, and `return 1` on failure.
@@ -400,4 +406,4 @@ Portability rules the code follows, because macOS still ships bash 3.2:
 - No `case` patterns with two quoted segments (`*"a "*" b"*`); bash 3.2 never matches them. Use one quoted segment.
 - No GNU-only tools: use `sed_inplace` instead of `sed -i`, and no `timeout`, `readlink -f` or `stat -c`.
 
-CI runs shellcheck and the test suite on Ubuntu and macOS (bash 3.2) on every push.
+CI runs shellcheck on Ubuntu, and the bats suite and the GUI tests on Ubuntu and macOS (bash 3.2), on every push to `main` and on pull requests.
