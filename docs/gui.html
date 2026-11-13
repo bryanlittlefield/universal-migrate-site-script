@@ -1,0 +1,440 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>GUI guide · Universal Migrate Site Script</title>
+<meta name="description" content="Guide to the local web GUI of universal-migrate-site-script: start it, create a migration, fill in the setup wizard, test the connections, choose steps and hooks, run and watch progress, browse run history and logs.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+
+<header class="bar">
+  <div class="wrap">
+    <a class="brand" href="index.html" aria-label="Universal Migrate Site Script, home">
+      <svg viewBox="0 0 26 26" aria-hidden="true"><rect x="1.5" y="6" width="9" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><rect x="15.5" y="6" width="9" height="14" rx="2" fill="none" stroke="var(--accent)" stroke-width="2"/><path d="M10.5 13h5m-2-2.5 2 2.5-2 2.5" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span class="full">universal-migrate-site-script</span>
+    </a>
+    <nav class="pages" aria-label="Guides">
+      <a href="index.html">Home</a>
+      <a href="cli.html">CLI</a>
+      <a href="gui.html" aria-current="page">GUI</a>
+    </nav>
+    <nav class="nav" aria-label="Sections">
+      <a href="#start">Start</a>
+      <a href="#tour">Tour</a>
+      <a href="#cli">GUI and CLI</a>
+      <a href="#security">Security</a>
+      <a href="#trouble">Troubleshooting</a>
+    </nav>
+    <div class="controls">
+      <button class="btn-theme" id="themeBtn" type="button" aria-label="Switch colour theme">Theme: auto</button>
+    </div>
+  </div>
+</header>
+
+<main id="top">
+
+<section class="hero">
+  <div class="wrap">
+    <div class="hero-copy">
+      <span class="eyebrow">GUI guide · <code>./gui.sh</code></span>
+      <h1>Set up, test and run a migration from your browser.</h1>
+      <p class="lead">A local web page over the same script. It writes the <code>.env</code> file for you, checks the SSH and database logins before anything runs, and shows each step as it happens.</p>
+      <div class="facts">
+        <span class="fact">python3 3.8+, nothing else</span>
+        <span class="fact">127.0.0.1 only</span>
+        <span class="fact">no packages · no build step</span>
+      </div>
+      <div class="cta">
+        <a class="btn primary" href="#start">Start the GUI</a>
+        <a class="btn" href="#tour">Take the tour</a>
+      </div>
+    </div>
+    <figure>
+      <a class="shot" href="img/gui-overview-light.webp" aria-label="Open the screenshot at full size">
+        <img class="light" src="img/gui-overview-light.webp" width="1860" height="1470" alt="The GUI's overview page for a migration called acme-shop: a diagram of files and database flowing from the remote server to this machine, the URL rewrite preview, and passed connection tests">
+        <img class="dark" src="img/gui-overview-dark.webp" width="1860" height="1470" alt="The GUI's overview page for a migration called acme-shop, dark theme">
+      </a>
+      <figcaption>The overview of one migration. The screenshots in this guide use a demo site.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section id="start">
+  <div class="wrap stack">
+    <div class="section-head">
+      <span class="eyebrow">Start</span>
+      <h2>Start the GUI</h2>
+      <p>From the script folder, on the machine that will host the copy. You need everything the <a href="index.html#need">command line needs</a>, plus <code>python3</code> 3.8 or newer.</p>
+    </div>
+    <pre class="code"><button class="copy" type="button">Copy</button><code>./gui.sh                           <span class="c"># opens http://127.0.0.1:8765/#token=… in your browser</span>
+./gui.sh --port 9000 --no-browser  <span class="c"># another port; just print the URL</span></code></pre>
+    <ul class="plain-list">
+      <li>The terminal prints the address with a <strong>token</strong>. Open that exact link. The token changes every time the GUI starts.</li>
+      <li>If port 8765 is busy, the next free one (up to 8784) is used; the printed link shows which. <code>UMS_GUI_PORT</code> sets the default port.</li>
+      <li>Stop the GUI with Ctrl-C in its terminal. Migrations that are already running keep going and show up again when you restart it.</li>
+    </ul>
+
+    <figure>
+      <div class="frame">
+        <svg viewBox="0 0 760 300" role="img" aria-label="How the GUI fits together: the browser talks to gui/server.py on 127.0.0.1, which edits the env files, starts migrate.sh and reads the logs that migrate.sh writes">
+          <defs>
+            <marker id="g1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker>
+            <marker id="g1a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker>
+          </defs>
+          <rect class="node" x="20" y="110" width="170" height="80" rx="10"/>
+          <text x="105" y="143" text-anchor="middle" class="title">Your browser</text>
+          <text x="105" y="163" text-anchor="middle" class="label">the GUI page</text>
+
+          <line class="edge accent" x1="192" y1="150" x2="278" y2="150" marker-start="url(#g1a)" marker-end="url(#g1a)"/>
+          <text x="235" y="140" text-anchor="middle" class="label">token</text>
+
+          <rect class="node hot" x="280" y="100" width="200" height="100" rx="10"/>
+          <text x="380" y="136" text-anchor="middle" class="title">gui/server.py</text>
+          <text x="380" y="156" text-anchor="middle" class="mono">127.0.0.1:8765</text>
+          <text x="380" y="176" text-anchor="middle" class="label">Python standard library</text>
+
+          <rect class="node" x="570" y="24" width="170" height="64" rx="10"/>
+          <text x="655" y="50" text-anchor="middle" class="title">Env files</text>
+          <text x="655" y="70" text-anchor="middle" class="mono">.env · sites/&lt;name&gt;.env</text>
+
+          <rect class="node" x="570" y="118" width="170" height="64" rx="10"/>
+          <text x="655" y="144" text-anchor="middle" class="title">migrate.sh</text>
+          <text x="655" y="164" text-anchor="middle" class="label">the same script as the CLI</text>
+
+          <rect class="node" x="570" y="212" width="170" height="64" rx="10"/>
+          <text x="655" y="238" text-anchor="middle" class="title">Logs</text>
+          <text x="655" y="258" text-anchor="middle" class="mono">logs/*.events · *.log</text>
+
+          <path class="edge" d="M480 124 H524 V56 H568" marker-end="url(#g1)"/>
+          <text x="520" y="46" text-anchor="middle" class="label">edits</text>
+          <line class="edge" x1="480" y1="150" x2="568" y2="150" marker-end="url(#g1)"/>
+          <text x="524" y="142" text-anchor="middle" class="label">starts</text>
+          <path class="edge" d="M568 244 H524 V176 H482" marker-end="url(#g1)"/>
+          <text x="520" y="262" text-anchor="middle" class="label">reads</text>
+
+          <line class="edge dashed" x1="655" y1="88" x2="655" y2="116" marker-end="url(#g1)"/>
+          <line class="edge dashed" x1="655" y1="182" x2="655" y2="210" marker-end="url(#g1)"/>
+          <text x="666" y="107" class="label">loads</text>
+          <text x="666" y="201" class="label">writes</text>
+        </svg>
+      </div>
+      <figcaption>The GUI is a thin layer. It edits env files, starts <code>migrate.sh</code> and reads the logs the script writes. Nothing it does is GUI-only, so every run can be repeated from a terminal.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section id="tour">
+  <div class="wrap stack">
+    <div class="section-head">
+      <span class="eyebrow">Tour</span>
+      <h2>From an empty form to a finished run</h2>
+      <p>Seven stops, in the order you meet them the first time.</p>
+    </div>
+    <nav class="jump" aria-label="Tour stops">
+      <a href="#t-create">1 · Create</a>
+      <a href="#t-setup">2 · Set up</a>
+      <a href="#t-test">3 · Test</a>
+      <a href="#t-steps">4 · Steps &amp; hooks</a>
+      <a href="#t-run">5 · Run</a>
+      <a href="#t-watch">6 · Watch</a>
+      <a href="#t-history">7 · History &amp; logs</a>
+    </nav>
+
+    <div class="tour">
+
+      <div class="tour-step" id="t-create">
+        <div class="tour-head"><div class="n">1</div><div class="body">
+          <h3>Create a migration</h3>
+          <p>A <strong>migration</strong> is one env file: one remote site copied to one local site. The sidebar lists them, and <strong>New migration</strong> adds one.</p>
+        </div></div>
+        <div class="tour-body">
+          <figure>
+            <div class="shot pad">
+              <img class="light" loading="lazy" src="img/gui-new-light.webp" width="1832" height="624" alt="The New migration form: a name field, a Start from menu, a switch to save as the default .env, and a Create and start setup button">
+              <img class="dark" loading="lazy" src="img/gui-new-dark.webp" width="1832" height="624" alt="The New migration form, dark theme">
+            </div>
+          </figure>
+          <ul>
+            <li><strong>default</strong> is <code>.env</code> in the script folder, the file <code>./migrate.sh</code> uses without options.</li>
+            <li>Any other name is saved as <code>sites/&lt;name&gt;.env</code> and runs with <code>./migrate.sh --env sites/&lt;name&gt;.env</code>. Names use lowercase letters, numbers, <code>-</code> and <code>_</code>.</li>
+            <li><strong>Start from</strong> can copy an existing migration. Handy for staging and production of the same site: change only what differs.</li>
+            <li>New files start from <code>.env.example</code>, so its comments are kept. They are written with mode 600 and are git-ignored.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="tour-step" id="t-setup">
+        <div class="tour-head"><div class="n">2</div><div class="body">
+          <h3>Fill in the setup wizard</h3>
+          <p>Six sections and a review page. They are not locked: jump to any of them from the bar at the top. A number turns into ✓ when the section's required fields (marked <span style="color:var(--bad)">*</span>) are filled in.</p>
+        </div></div>
+        <div class="tour-body">
+          <figure>
+            <a class="shot" href="img/gui-setup-light.webp" aria-label="Open the screenshot at full size">
+              <img class="light" loading="lazy" src="img/gui-setup-light.webp" width="1860" height="1230" alt="The setup wizard on its Remote server section, with fields for SSH host, user, port, login method, key path and remote web root, and an open tooltip explaining the remote web root">
+              <img class="dark" loading="lazy" src="img/gui-setup-dark.webp" width="1860" height="1230" alt="The setup wizard on its Remote server section, dark theme">
+            </a>
+            <figcaption>Every field shows its <code>.env</code> key on the right. The ⓘ button explains the field and shows the key and the default: hover, focus or click it.</figcaption>
+          </figure>
+          <div class="tbl-wrap"><table class="tbl">
+            <thead><tr><th>Section</th><th>What you enter</th></tr></thead>
+            <tbody>
+              <tr><td><strong>Remote server</strong></td><td>SSH host, user and port, how you log in (key file, password or ssh-agent), the remote web root and the live domain. <em>Advanced</em> holds the settings for hosts with a <a href="cli.html#trouble">non-standard WordPress layout</a>: <em>Only sync this folder</em>, <em>WP-CLI folder</em> and <em>wp-config.php path</em>.</td></tr>
+              <tr><td><strong>Remote database</strong></td><td>The credentials from <code>wp-config.php</code> or Laravel's <code>.env</code> on the server, and the <a href="cli.html#database">export method</a>: <em>SSH tunnel</em> or <em>Dump on the server</em>.</td></tr>
+              <tr><td><strong>Local site</strong></td><td>The folder to sync into, the local domain and scheme, the platform, <a href="cli.html#files">what to copy and how</a>.</td></tr>
+              <tr><td><strong>Local database</strong></td><td>The database that is replaced. It is backed up first unless you turn that off. <em>Keep local data for tables</em> preserves, say, <code>wp_options</code> across the import.</td></tr>
+              <tr><td><strong>WordPress &amp; Laravel</strong></td><td>Local-only settings applied after the copy: environment type, debug mode, a local admin user, Laravel's <code>APP_ENV</code>.</td></tr>
+              <tr><td><strong>Behaviour</strong></td><td>Whether to keep going after a failed step, the database progress bars and the extra checks. Any key from <code>.env.example</code> without a field of its own appears under <em>Advanced</em> here.</td></tr>
+              <tr><td><strong>Review &amp; save</strong></td><td>Everything on one page, changed values flagged, passwords masked, plus a final connection check.</td></tr>
+            </tbody>
+          </table></div>
+          <ul>
+            <li>The diagram of where files and the database go, and the <strong>URL rewrite</strong> preview, update as you type.</li>
+            <li>The key field suggests the private keys found in <code>~/.ssh</code> and warns about a <code>.pub</code> file or loose permissions. Risky choices (mirror mode, backup off) get a warning.</li>
+          </ul>
+          <p class="callout"><strong>Changes stay in the browser until you press Save.</strong> The bar at the bottom shows how many are pending. Tests already use them; runs always use the saved file. Saving rewrites only the lines that changed, so comments and hand edits in the env file survive.</p>
+        </div>
+      </div>
+
+      <div class="tour-step" id="t-test">
+        <div class="tour-head"><div class="n">3</div><div class="body">
+          <h3>Test the connections</h3>
+          <p>Each section has <strong>Test</strong> buttons, and the overview has them all with <strong>Test all</strong>. They run the script's own preflight checks (<code>migrate.sh --test …</code>) with the values on screen, saved or not. Tests only read: nothing changes on either server.</p>
+        </div></div>
+        <div class="tour-body">
+          <dl class="defs">
+            <dt>SSH login</dt><dd>Logs in without prompting and checks that the remote web root exists.</dd>
+            <dt>Remote database</dt><dd>Connects the way the run will, opening the tunnel for the tunnel method, and runs <code>SELECT 1</code>.</dd>
+            <dt>Local database</dt><dd>Logs in locally and checks that the database exists or will be created.</dd>
+            <dt>Local web root</dt><dd>The folder exists, or will be created, and is writable.</dd>
+            <dt>Local tools</dt><dd>ssh, rsync, mysql, mysqldump, wp or php: whatever the enabled steps need.</dd>
+            <dt>Disk space</dt><dd>The remote site's size against free local space. Part of <strong>Check everything</strong>.</dd>
+          </dl>
+          <figure>
+            <div class="shot pad">
+              <img class="light" loading="lazy" src="img/gui-test-fail-light.webp" width="1748" height="364" alt="A failed SSH login test: the script's message remote_ssh_key not found, and a Likely cause box saying the key path does not exist on this machine">
+              <img class="dark" loading="lazy" src="img/gui-test-fail-dark.webp" width="1748" height="364" alt="A failed SSH login test with its Likely cause, dark theme">
+            </div>
+            <figcaption>A failed test shows the script's message and, for common errors (wrong key, firewall, wrong database host), a likely cause.</figcaption>
+          </figure>
+          <ul>
+            <li>A passed test turns the matching dot and arrow in the diagram green. If you change a value afterwards, the result is flagged as out of date.</li>
+            <li>Password and passphrase prompts cannot be answered from a browser. Use a key file, a password (needs <code>sshpass</code>), or keys already loaded in <code>ssh-agent</code>.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="tour-step" id="t-steps">
+        <div class="tour-head"><div class="n">4</div><div class="body">
+          <h3>Choose steps and add hooks</h3>
+          <p><strong>Steps &amp; hooks</strong> lists <a href="cli.html#steps">every step</a> in the order it runs. The switches are saved in the env file as <code>skip_*</code> and <code>run_*</code>, so terminal runs follow them too.</p>
+        </div></div>
+        <div class="tour-body">
+          <figure>
+            <a class="shot" href="img/gui-steps-light.webp" aria-label="Open the screenshot at full size">
+              <img class="light" loading="lazy" src="img/gui-steps-light.webp" width="1860" height="1230" alt="The Steps and hooks page: the before-run hook with a script editor and a template menu, then the Clear local web root step marked opt-in and switched off, and the maintenance mode step switched on">
+              <img class="dark" loading="lazy" src="img/gui-steps-dark.webp" width="1860" height="1230" alt="The Steps and hooks page, dark theme">
+            </a>
+          </figure>
+          <ul>
+            <li><strong>Opt-in</strong> steps (<em>Clear local web root</em>, <em>Install Kinsta MU plugins</em>) are off until you enable them. Clearing the web root asks you to confirm when you enable it, and again on every run.</li>
+            <li>Steps marked WordPress or Laravel are skipped on the other platform. The two maintenance steps switch on and off together.</li>
+          </ul>
+          <h4>Before-run and after-run hooks</h4>
+          <p>Hooks are your own shell commands. <strong>before-run</strong> runs before everything else, <strong>after-run</strong> runs last. Type into the editor or insert a template: start Docker services, wait for the local database, stash local changes, activate development plugins, run Laravel migrations, build front-end assets, notify a webhook. Leave a hook empty to skip it.</p>
+          <ul>
+            <li>Saved as <code>hooks/&lt;migration&gt;/before-run.sh</code> and <code>after-run.sh</code> (git-ignored). The env file points at them through <code>before_run_hook</code> and <code>after_run_hook</code>.</li>
+            <li>They run with <code>bash</code> inside the local web root (the script folder if it does not exist yet), with <code>UMS_*</code> variables set. The page lists them under the steps.</li>
+            <li>A hook that exits non-zero fails its step. If an earlier step fails and <em>Keep going after a failed step</em> is off, the after-run hook does not run.</li>
+            <li>During a dry run, hooks are printed, not run.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="tour-step" id="t-run">
+        <div class="tour-head"><div class="n">5</div><div class="body">
+          <h3>Start a run</h3>
+          <p>The three buttons at the top of every migration page open the run dialog.</p>
+        </div></div>
+        <div class="tour-body">
+          <div class="split">
+            <figure>
+              <div class="shot">
+                <img class="light" loading="lazy" src="img/gui-run-dialog-light.webp" width="1280" height="1436" alt="The run dialog: a choice of Migration, Dry run or Check everything, a checklist of steps for this run, a warning that the local database will be replaced after a backup, and the equivalent command line">
+                <img class="dark" loading="lazy" src="img/gui-run-dialog-dark.webp" width="1280" height="1436" alt="The run dialog, dark theme">
+              </div>
+            </figure>
+            <div class="stack">
+              <dl class="defs">
+                <dt>Run migration</dt><dd>The real thing: files are synced and the local database is replaced, after a backup.</dd>
+                <dt>Dry run</dt><dd>Runs the read-only parts (SSH, table listing, <code>rsync --dry-run</code>) and prints every other command. Nothing changes. A good first run.</dd>
+                <dt>Check everything</dt><dd>Every preflight check including disk space, then stops.</dd>
+              </dl>
+              <ul class="plain-list">
+                <li>Untick a step to leave it out of this run only. Tick an opt-in step to include it this once.</li>
+                <li>The dialog shows the <strong>equivalent command</strong> as you change things.</li>
+                <li>GUI runs are unattended (<code>--yes</code>): nothing waits for an answer halfway through.</li>
+                <li>With <em>Clear local web root</em> ticked, you must type the folder's name before the run starts.</li>
+                <li>Runs use the saved env file. With unsaved changes, the dialog offers to save them first.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tour-step" id="t-watch">
+        <div class="tour-head"><div class="n">6</div><div class="body">
+          <h3>Watch it run</h3>
+          <p>Starting a run opens its live page. You can leave and come back; the run does not depend on the page staying open.</p>
+        </div></div>
+        <div class="tour-body">
+          <figure>
+            <a class="shot" href="img/gui-run-live-light.webp" aria-label="Open the screenshot at full size">
+              <img class="light" loading="lazy" src="img/gui-run-live-light.webp" width="1860" height="1500" alt="A running migration: a progress bar, the current step Sync files from remote with 520 files transferred so far, a timeline of steps with timers, the streaming console and a Stop button">
+              <img class="dark" loading="lazy" src="img/gui-run-live-dark.webp" width="1860" height="1500" alt="A running migration, dark theme">
+            </a>
+          </figure>
+          <ul>
+            <li>A <strong>progress bar</strong> and a <strong>timeline</strong> of the preflight checks and every step, with a timer on the current one. Skipped steps say why.</li>
+            <li>While files sync, the number of files rsync has transferred so far and the latest one.</li>
+            <li>The <strong>console</strong> streams the script's output. Turn off <em>Follow</em> to scroll back while it runs.</li>
+            <li><strong>Stop</strong> works like Ctrl-C: the script closes the SSH tunnel, removes its temp files and warns if maintenance mode is still on. Only runs started from the GUI can be stopped here.</li>
+            <li>When a run ends, the page keeps its timeline and console, shows the exit code, and links the full log, the report, the rsync file list and the events file. A failed step is marked red; its error is in the console on the lines starting with ❌.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="tour-step" id="t-history">
+        <div class="tour-head"><div class="n">7</div><div class="body">
+          <h3>Look back: run history and logs</h3>
+          <p>The <strong>Runs</strong> tab lists every run of the migration, with status, type, duration, the options used and a strip showing each step's result. Runs started from a terminal are listed too.</p>
+        </div></div>
+        <div class="tour-body">
+          <figure>
+            <a class="shot" href="img/gui-runs-light.webp" aria-label="Open the screenshot at full size">
+              <img class="light" loading="lazy" src="img/gui-runs-light.webp" width="1860" height="1035" alt="The run history table with six runs: three succeeded migrations, one failed migration whose last step is red, a dry run and a check">
+              <img class="dark" loading="lazy" src="img/gui-runs-dark.webp" width="1860" height="1035" alt="The run history table, dark theme">
+            </a>
+          </figure>
+          <ul>
+            <li>Open a run for its timeline, console, <strong>full log</strong>, <strong>report</strong> (one line per step) and <strong>rsync file list</strong>.</li>
+            <li><strong>Log files</strong> lists everything in the log folder, older runs included. View any file with a line filter, or download it. The viewer shows the last 2 MB of a larger file.</li>
+            <li>A run shows <em>Interrupted</em> when the script exited without its final event (killed, or the machine went to sleep), and <em>Stopped</em> when you stopped it.</li>
+          </ul>
+          <p class="callout note">History comes from the <code>.events</code> file the script writes next to each log (<code>logs/migrate-&lt;time&gt;.events</code>). The GUI keeps no database of its own.</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<section id="many">
+  <div class="wrap stack">
+    <div class="section-head">
+      <span class="eyebrow">Several sites</span>
+      <h2>One migration per site or environment</h2>
+      <p>Each migration has its own credentials, steps, hooks and run history. The dot next to its name in the sidebar shows how its last run ended.</p>
+    </div>
+    <ul class="plain-list">
+      <li>They share the list files in <code>config/</code> (exclude lists, domain pairs) unless a migration points at its own files in the <em>Advanced</em> fields.</li>
+      <li>One migration runs once at a time. Different migrations can run side by side.</li>
+      <li><strong>Delete migration</strong>, in the danger zone at the bottom of the overview, removes the env file after you type its name. Logs, dumps and hook scripts are kept.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="cli">
+  <div class="wrap stack">
+    <div class="section-head">
+      <span class="eyebrow">GUI and CLI</span>
+      <h2>The same thing from a terminal</h2>
+      <p>Everything in the GUI has a command-line twin. The overview page of each migration shows the exact commands for it.</p>
+    </div>
+    <div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>In the GUI</th><th>On the command line</th></tr></thead>
+      <tbody>
+        <tr><td>Test SSH and the databases</td><td><code>./migrate.sh --test ssh,remote-db,local-db</code></td></tr>
+        <tr><td>Check everything</td><td><code>./migrate.sh --check</code></td></tr>
+        <tr><td>Dry run</td><td><code>./migrate.sh --yes --dry-run</code></td></tr>
+        <tr><td>Run migration</td><td><code>./migrate.sh --yes</code></td></tr>
+        <tr><td>Untick a step for one run</td><td><code>--skip sync-files</code></td></tr>
+        <tr><td>Tick an opt-in step for one run</td><td><code>--with clear-web-root</code></td></tr>
+        <tr><td>Switch a step off for good</td><td><code>skip_file_sync='true'</code> in the env file</td></tr>
+        <tr><td>Another migration</td><td><code>--env sites/&lt;name&gt;.env</code></td></tr>
+      </tbody>
+    </table></div>
+    <p>You can keep editing env files by hand. The GUI rereads the file every time it opens a migration, and saving changes only the lines you edited: comments and the order of keys stay as they were. For what each step and setting does, see the <a href="cli.html">CLI guide</a>.</p>
+  </div>
+</section>
+
+<section id="security">
+  <div class="wrap stack">
+    <div class="section-head">
+      <span class="eyebrow">Security</span>
+      <h2>Who can reach it</h2>
+      <p>The GUI can read your credentials and start migrations, so it is built to answer only you.</p>
+    </div>
+    <div class="grid3">
+      <div class="card"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg><h3>This machine only</h3><p>It listens on <code>127.0.0.1</code>. Requests with a foreign <code>Host</code> header are rejected, which blocks DNS rebinding.</p></div>
+      <div class="card"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="8" cy="12" r="4"/><path d="M12 12h9M17 12v3M20 12v2"/></svg><h3>A token per launch</h3><p>Each start creates a random token. The browser gets it from the printed link and sends it with every request, so other websites you visit cannot read or start anything.</p></div>
+      <div class="card"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><h3>Passwords stay in your files</h3><p>Env files are mode 600 and git-ignored. The script passes passwords through stdin, environment variables or temporary option files, never on a command line.</p></div>
+    </div>
+    <h3>On a remote machine</h3>
+    <p>Keep the GUI bound to 127.0.0.1 and tunnel to it, then open the printed link on your own machine. Avoid <code>--host 0.0.0.0</code>: anyone who can reach the port and has the token could read your credentials and run migrations.</p>
+    <pre class="code"><button class="copy" type="button">Copy</button><code>ssh -L 8765:127.0.0.1:8765 you@box   <span class="c"># on your machine</span>
+./gui.sh --no-browser                <span class="c"># on the box</span></code></pre>
+  </div>
+</section>
+
+<section id="trouble">
+  <div class="wrap stack">
+    <div class="section-head">
+      <span class="eyebrow">Troubleshooting</span>
+      <h2>When something looks off</h2>
+      <p>GUI-specific problems. For errors from the migration itself, see <a href="cli.html#trouble">troubleshooting in the CLI guide</a>.</p>
+    </div>
+    <div>
+      <details><summary>"Open the link from the terminal"</summary><p>The page has no token, for example after the GUI was restarted or the page was opened in a new window. Open the link that <code>./gui.sh</code> printed.</p></details>
+      <details><summary>"The GUI needs python3"</summary><p>Install Python 3.8 or newer. The command line works without it: <code>./migrate.sh --help</code>.</p></details>
+      <details><summary>The SSH test hangs, then fails</summary><p>The GUI cannot answer password or passphrase prompts. Use a key without a passphrase, load it with <code>ssh-add</code> first, or use a password with <code>sshpass</code> installed. A test is cut off after 120 seconds.</p></details>
+      <details><summary>The remote database fails with the tunnel method</summary><p>The server may forbid TCP forwarding. Switch the export method to <em>Dump on the server</em>.</p></details>
+      <details><summary>SSL errors from the database client</summary><p>Set the client SSL flag under <em>Advanced</em>: <code>--skip-ssl</code> for a MariaDB client, <code>--ssl-mode=DISABLED</code> for a MySQL client.</p></details>
+      <details><summary>"Process count of N exceeded maximum allowed value"</summary><p>The host limits how many processes your account may run and stopped the script. Turn off <em>Progress bars for the database (pv)</em> under Behaviour, log in with a key file, and run while the site is quiet.</p></details>
+      <details><summary>wp-config.php not found, or WP-CLI cannot find WordPress</summary><p>The host keeps WordPress core outside the web root. Under Remote server → <em>Advanced</em>, set <em>Only sync this folder</em> (usually <code>wp-content</code>), <em>WP-CLI folder</em> and <em>wp-config.php path</em>.</p></details>
+      <details><summary>A run shows "Interrupted"</summary><p>The script exited without writing its final event. Check the log, and remove <code>.maintenance</code> or run <code>php artisan up</code> if the local site is still in maintenance mode.</p></details>
+      <details><summary>"This migration is already running"</summary><p>One migration runs once at a time. Open the running one from the <em>Running now</em> badge, or wait for it to finish.</p></details>
+      <details><summary>The Stop button is missing</summary><p>The run was started from a terminal. Stop it there with Ctrl-C.</p></details>
+      <details><summary>A setting does not seem to apply</summary><p>Check for unsaved changes (the bar at the bottom), and that the key is not set twice in the env file by hand.</p></details>
+      <details><summary>"This env file has a shell syntax error"</summary><p>bash could not load the file cleanly, usually an unbalanced quote from a hand edit. Open it in an editor and fix the quotes.</p></details>
+    </div>
+    <p>The same guide is built into the GUI: <strong>User guide</strong> at the bottom of the sidebar.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap stack">
+    <div class="next">
+      <a href="cli.html"><span>Next</span><strong>CLI guide →</strong><span>What every step does, the database export methods, flags and safety.</span></a>
+      <a href="index.html"><span>Back</span><strong>← Overview</strong><span>What the tool does and which way to run it.</span></a>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>universal-migrate-site-script · <a href="index.html">home</a> · <a href="cli.html">CLI guide</a> · <a href="https://github.com/bryanlittlefield/universal-migrate-site-script">source</a> · <a href="https://github.com/bryanlittlefield/universal-migrate-site-script/blob/main/README.md">README</a> · <a href="https://github.com/bryanlittlefield/universal-migrate-site-script/blob/main/CHANGELOG.md">changelog</a></span>
+    <span>Rewritten from <a href="https://github.com/builtmighty/migrate-site-script">builtmighty/migrate-site-script</a></span>
+  </div>
+</footer>
+
+<script src="assets/site.js"></script>
+</body>
+</html>
