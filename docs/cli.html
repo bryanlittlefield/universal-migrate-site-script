@@ -256,7 +256,8 @@
         <p>Your own command or script, before anything else: start Docker, stash local changes, send a notification. Skipped when <code>before_run_hook</code> is empty, which is the default.</p>
         <div class="tech tech-block"><div class="eyebrow">Under the hood</div><ul>
           <li><code>before_run_hook</code> is either a script path (absolute or relative to the script folder, run with <code>bash</code>) or a command line. It runs in <code>local_web_root</code> (the script folder until that exists) with stdin closed.</li>
-          <li>Variables set for it: <code>UMS_HOOK</code>, <code>UMS_ENV_FILE</code>, <code>UMS_PLATFORM</code>, <code>UMS_LOCAL_WEB_ROOT</code>, <code>UMS_LOCAL_URL</code>, <code>UMS_REMOTE_URL</code>, <code>UMS_IMPORT_DB_NAME</code>, <code>UMS_LOG_FILE</code>, <code>UMS_RUN_TAG</code>, <code>UMS_DRY_RUN</code>, <code>UMS_FAILED_STEPS</code>.</li>
+          <li>Variables set for it: <code>UMS_HOOK</code>, <code>UMS_ENV_FILE</code>, <code>UMS_PLATFORM</code>, <code>UMS_LOCAL_WEB_ROOT</code>, <code>UMS_WP_PATH</code>, <code>UMS_LOCAL_URL</code>, <code>UMS_REMOTE_URL</code>, <code>UMS_IMPORT_DB_NAME</code>, <code>UMS_LOG_FILE</code>, <code>UMS_RUN_TAG</code>, <code>UMS_DRY_RUN</code>, <code>UMS_FAILED_STEPS</code>.</li>
+          <li><code>UMS_WP_PATH</code> is the folder WP-CLI runs against (<code>wp_cli_path</code>, or <code>local_web_root</code>). Put global WP-CLI flags before the command, <code>wp --path="$UMS_WP_PATH" plugin activate query-monitor</code>: hosts that set <code>WP_CLI_STRICT_ARGS_MODE</code> reject them after it.</li>
           <li>A non-zero exit fails the step. Under <code>--dry-run</code> the hook is printed, not run.</li>
         </ul></div>
       </div></div>

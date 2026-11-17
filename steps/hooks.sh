@@ -5,6 +5,9 @@
 # relative to the script directory; run with bash) or a shell command line.
 # The hook runs in local_web_root when it exists, otherwise in the script
 # directory, with stdin closed and the main settings exported as UMS_* variables.
+# UMS_WP_PATH is the folder WP-CLI runs against (wp_cli_path, default local_web_root):
+# call wp as `wp --path="$UMS_WP_PATH" <command>`, with --path BEFORE the command,
+# because hosts that set WP_CLI_STRICT_ARGS_MODE reject global flags after it.
 # A non-zero exit fails the step like any other.
 
 run_hook() {
@@ -22,7 +25,7 @@ run_hook() {
   (
     cd "$dir" || exit 1
     export UMS_HOOK=${var%_hook} UMS_ENV_FILE=$ENV_FILE UMS_PLATFORM=$platform \
-      UMS_LOCAL_WEB_ROOT=$local_web_root UMS_LOCAL_URL="${local_scheme}://${local_domain}" \
+      UMS_LOCAL_WEB_ROOT=$local_web_root UMS_WP_PATH="${WP_PATH:-$local_web_root}" UMS_LOCAL_URL="${local_scheme}://${local_domain}" \
       UMS_REMOTE_URL="${remote_scheme}://${remote_domain}" UMS_IMPORT_DB_NAME=$import_db_name \
       UMS_LOG_FILE=$LOG_FILE UMS_RUN_TAG=$RUN_TAG UMS_DRY_RUN=$DRY_RUN \
       UMS_FAILED_STEPS="${FAILED_STEPS[*]+${FAILED_STEPS[*]}}"
