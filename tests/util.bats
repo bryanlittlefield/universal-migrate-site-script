@@ -88,6 +88,14 @@ teardown() { rm -rf "$T"; }
   [ "$output" = $'--include=/wp-content/\n--include=/wp-content/uploads/\n--include=/wp-content/uploads/**\n--exclude=*' ]
 }
 
+@test "set_path_filters fills PATH_FILTERS without a subshell" {
+  set_path_filters /wp-content/plugins/
+  [ "${#PATH_FILTERS[@]}" -eq 4 ]
+  [ "${PATH_FILTERS[1]}" = "--include=/wp-content/plugins/" ]
+  [ "${PATH_FILTERS[2]}" = "--include=/wp-content/plugins/**" ]
+  [ "${PATH_FILTERS[3]}" = "--exclude=*" ]
+}
+
 @test "split_list accepts commas and whitespace" {
   run split_list 'wp_options, wp_users  *_x'
   [ "$output" = $'wp_options\nwp_users\n*_x' ]

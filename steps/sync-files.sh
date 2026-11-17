@@ -9,7 +9,8 @@ step_sync_files() {
   # account can write to but doesn't own a directory, as on shared hosts.
   local -a opts=(-rlpt --omit-dir-times --human-readable --stats --partial
                  --exclude=/.maintenance --exclude=.git/ --exclude='*.sql' --exclude='*.sql.gz')
-  local rsync_log="$log_dir/rsync-${RUN_TAG}.log" rc=0 f
+  local rsync_log="$log_dir/rsync-${RUN_TAG}.log" rc=0
+  local -a PATH_FILTERS
 
   if [[ $STDOUT_IS_TTY == true ]] && ! is_true "$plain_output" && rsync --info=help >/dev/null 2>&1; then
     opts+=(--info=progress2)
@@ -26,11 +27,13 @@ step_sync_files() {
       if [[ -n $sync_path && "$uploads_rel_path/" != "$sync_path/"* ]]; then
         warn "sync_mode=uploads copies ${uploads_rel_path}, which is outside sync_path '${sync_path}'"
       fi
-      while IFS= read -r f; do opts+=("$f"); done < <(only_path_filters "$uploads_rel_path")
+      set_path_filters "$uploads_rel_path"
+      opts+=("${PATH_FILTERS[@]}")
       ;;
   esac
   if [[ -n $sync_path && $sync_mode != uploads ]]; then
-    while IFS= read -r f; do opts+=("$f"); done < <(only_path_filters "$sync_path")
+    set_path_filters "$sync_path"
+    opts+=("${PATH_FILTERS[@]}")
   fi
   [[ -n $rsync_bwlimit ]] && opts+=(--bwlimit="$rsync_bwlimit")
   if [[ -n $rsync_extra_opts ]]; then
