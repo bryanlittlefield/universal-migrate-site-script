@@ -160,18 +160,28 @@ wait_for_port() {
   done
 }
 
-# only_path_filters REL_PATH — rsync include/exclude args (one per line)
-# that transfer only REL_PATH and its parents.
-uploads_only_filters() { only_path_filters "$@"; }
-only_path_filters() {
+# set_path_filters REL_PATH — fill the PATH_FILTERS array with rsync
+# include/exclude args that transfer only REL_PATH and its parents.
+# Sets an array instead of printing so callers need no process substitution:
+# some hosts have no /dev/fd, and there the rules were silently dropped.
+set_path_filters() {
   local rel=${1#/} acc="" part
   rel=${rel%/}
+  PATH_FILTERS=()
   local IFS=/
   for part in $rel; do
     acc="$acc/$part"
-    printf -- '--include=%s/\n' "$acc"
+    PATH_FILTERS+=("--include=$acc/")
   done
-  printf -- '--include=%s/**\n--exclude=*\n' "$acc"
+  PATH_FILTERS+=("--include=$acc/**" "--exclude=*")
+}
+
+# only_path_filters REL_PATH — the same rules, printed one per line.
+uploads_only_filters() { only_path_filters "$@"; }
+only_path_filters() {
+  local -a PATH_FILTERS
+  set_path_filters "$1"
+  printf -- '%s\n' "${PATH_FILTERS[@]}"
 }
 
 # pv_enabled — true when pv is allowed (use_pv), installed and output is interactive.
