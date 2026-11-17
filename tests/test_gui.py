@@ -9,6 +9,7 @@ pointed there, so nothing touches the real .env or sites/.
 import http.client
 import json
 import os
+import re
 import shutil
 import sys
 import tempfile
@@ -235,6 +236,17 @@ class ApiTest(unittest.TestCase):
         self.assertFalse(r["ok"])
         self.assertEqual(r["results"], [{"level": "fail", "message": "remote_ssh_key not found: /no/such/key"}])
         self.assertEqual(self.call("POST", "/api/profiles/site-d/test", {"targets": ["rm -rf"]})[0], 400)
+
+
+class HookTemplateTest(unittest.TestCase):
+    def test_wp_templates_put_global_flags_before_the_command(self):
+        # Hosts that set WP_CLI_STRICT_ARGS_MODE reject --path (and friends) after the command.
+        js = (REPO / "gui" / "static" / "app.js").read_text(encoding="utf-8")
+        calls = re.findall(r"'(wp [^']*)'", js[js.index("HOOK_TEMPLATES"):js.index("function stepState")])
+        self.assertTrue(calls)
+        for call in calls:
+            self.assertRegex(call, r'^wp --path="\$UMS_WP_PATH" [a-z]')
+            self.assertNotRegex(call.split(" ", 2)[2], r"--(path|url|quiet|skip-plugins|skip-themes)\b")
 
 
 if __name__ == "__main__":

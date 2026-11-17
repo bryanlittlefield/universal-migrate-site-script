@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Added
+- `UMS_WP_PATH` for hooks: the folder WP-CLI runs against (`wp_cli_path`, default `local_web_root`).
 - Non-standard WordPress layouts (hosts that manage core themselves): `sync_path` syncs one folder inside the web root (e.g. `wp-content`) instead of the whole install, `wp_cli_path` sets the folder every WP-CLI command runs against, and `wp_config_path` points at a `wp-config.php` outside the web root. In the GUI they are under Setup → Remote server → Advanced.
 - `use_pv` (default `true`, also in the GUI under Behaviour): set `false` to turn off the `pv` progress bars for the database export and import without losing colours. Each bar is an extra process, which matters on hosts that cap processes per account.
 
@@ -13,6 +14,7 @@
 - The database export downloads the raw dump to `<dump>.raw[.gz]` first and filters it (DEFINERs, collations) in a second pass instead of streaming through `gunzip | sed | pv`. Only `ssh` (or the local `mysqldump` for the tunnel method) runs during the transfer, which keeps the run under per-account process limits on managed hosts (`Process count of N exceeded maximum allowed value of 25`).
 
 ### Fixed
+- GUI hook templates *Activate dev plugins (WordPress)* and *Disable mail (WordPress)* put `--path` before the WP-CLI command and use the new `UMS_WP_PATH`. With `--path` after the command, hosts that set `WP_CLI_STRICT_ARGS_MODE` failed the after-run hook with `unknown --path parameter`, and the hook ignored `wp_cli_path` on non-standard layouts. Hooks already saved from the old templates need the same edit by hand.
 - WP-CLI calls put `--quiet` before the command. Hosts that set `WP_CLI_STRICT_ARGS_MODE` rejected it after the command with `unknown --quiet parameter`, failing `app-config`.
 - `sync-files` passes `--omit-dir-times`, so a local web root the account can write to but doesn't own no longer fails with `failed to set times on "…/.": Operation not permitted` (rsync exit 23). File modification times are still preserved.
 

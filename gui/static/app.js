@@ -779,8 +779,8 @@
     ],
     after: [
       ['Script header', '#!/usr/bin/env bash\n# Runs in $UMS_LOCAL_WEB_ROOT after the last step. A non-zero exit marks the run failed.\nset -euo pipefail\n'],
-      ['Activate dev plugins (WordPress)', 'wp plugin activate query-monitor --path="$UMS_LOCAL_WEB_ROOT"\n'],
-      ['Disable mail (WordPress)', 'wp plugin activate disable-emails --path="$UMS_LOCAL_WEB_ROOT" || true\n'],
+      ['Activate dev plugins (WordPress)', 'wp --path="$UMS_WP_PATH" plugin activate query-monitor\n'],
+      ['Disable mail (WordPress)', 'wp --path="$UMS_WP_PATH" plugin activate disable-emails || true\n'],
       ['Run migrations (Laravel)', 'php artisan migrate --force\n'],
       ['Build front-end assets', 'npm ci && npm run build\n'],
       ['Notify a webhook', 'curl -fsS -X POST -H "Content-Type: application/json" \\\n  -d "{\\"text\\":\\"$UMS_LOCAL_URL is ready (failed steps: ${UMS_FAILED_STEPS:-none})\\"}" \\\n  "https://hooks.example.com/your-webhook"\n'],
@@ -864,7 +864,8 @@
         list),
       h('div', { class: 'card stack' }, h('h3', {}, 'Variables available to hooks'),
         h('div', { class: 'table-wrap' }, h('table', {}, h('tbody', {}, [
-          ['UMS_HOOK', 'before or after'], ['UMS_LOCAL_WEB_ROOT', 'local_web_root (also the working directory when it exists)'],
+          ['UMS_HOOK', 'before_run or after_run'], ['UMS_LOCAL_WEB_ROOT', 'local_web_root (also the working directory when it exists)'],
+          ['UMS_WP_PATH', 'the folder WP-CLI runs against (WP-CLI folder, or the local web root). Put it before the command: wp --path="$UMS_WP_PATH" plugin list'],
           ['UMS_LOCAL_URL / UMS_REMOTE_URL', 'scheme://domain of each side'], ['UMS_PLATFORM', 'wordpress, laravel or unknown'],
           ['UMS_IMPORT_DB_NAME', 'local database name'], ['UMS_ENV_FILE', 'the env file of this run'], ['UMS_LOG_FILE / UMS_RUN_TAG', 'this run\'s log and id'],
           ['UMS_DRY_RUN', 'true during a dry run (the hook is then only printed, not run)'], ['UMS_FAILED_STEPS', 'after hook: ids of failed steps (with Keep going on)'],

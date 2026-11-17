@@ -451,6 +451,24 @@ CFG
   [[ $output == *"Run the before-run hook FAILED (exit 7)"* ]]
   ! grep -q '^rsync' "$STUB_LOG"
 
+  # WP-CLI from a hook: --path goes before the command (the wp stub is strict about that,
+  # like WP_CLI_STRICT_ARGS_MODE) and UMS_WP_PATH follows wp_cli_path
+  : > "$STUB_LOG"
+  write_env wordpress remote "after_run_hook='wp --path=\"\$UMS_WP_PATH\" plugin activate query-monitor'"
+  run migrate --yes
+  [ "$status" -eq 0 ]
+  grep -q "^wp --path=$T/www plugin activate query-monitor" "$STUB_LOG"
+  mkdir -p "$T/core/wp-includes"
+  : > "$STUB_LOG"
+  write_env wordpress remote "wp_cli_path='$T/core'" "after_run_hook='wp --path=\"\$UMS_WP_PATH\" plugin activate query-monitor'"
+  run migrate --yes
+  [ "$status" -eq 0 ]
+  grep -q "^wp --path=$T/core plugin activate query-monitor" "$STUB_LOG"
+  write_env wordpress remote "after_run_hook='wp plugin activate query-monitor --path=\"\$UMS_WP_PATH\"'"
+  run migrate --yes
+  [ "$status" -eq 1 ]
+  [[ $output == *"unknown --path parameter"* ]]
+
   : > "$STUB_LOG"
   write_env wordpress remote "before_run_hook='touch $T/ran'"
   run migrate --yes --dry-run

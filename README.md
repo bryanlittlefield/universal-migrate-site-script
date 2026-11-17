@@ -260,7 +260,9 @@ All settings live in `.env`; see [.env.example](.env.example) for every key with
 | `before_run_hook` | | Runs as the first step |
 | `after_run_hook` | | Runs as the last step |
 
-Each is either a script path (absolute or relative to the script folder, run with `bash`) or a command line. It runs in `local_web_root` (the script folder until that exists) with stdin closed and these variables set: `UMS_HOOK`, `UMS_ENV_FILE`, `UMS_PLATFORM`, `UMS_LOCAL_WEB_ROOT`, `UMS_LOCAL_URL`, `UMS_REMOTE_URL`, `UMS_IMPORT_DB_NAME`, `UMS_LOG_FILE`, `UMS_RUN_TAG`, `UMS_DRY_RUN`, `UMS_FAILED_STEPS`. A non-zero exit fails the step. Under `--dry-run` the hook is printed, not run. The GUI stores hook scripts in `hooks/<migration>/` (git-ignored).
+Each is either a script path (absolute or relative to the script folder, run with `bash`) or a command line. It runs in `local_web_root` (the script folder until that exists) with stdin closed and these variables set: `UMS_HOOK`, `UMS_ENV_FILE`, `UMS_PLATFORM`, `UMS_LOCAL_WEB_ROOT`, `UMS_WP_PATH`, `UMS_LOCAL_URL`, `UMS_REMOTE_URL`, `UMS_IMPORT_DB_NAME`, `UMS_LOG_FILE`, `UMS_RUN_TAG`, `UMS_DRY_RUN`, `UMS_FAILED_STEPS`. A non-zero exit fails the step. Under `--dry-run` the hook is printed, not run. The GUI stores hook scripts in `hooks/<migration>/` (git-ignored).
+
+`UMS_WP_PATH` is the folder WP-CLI runs against (`wp_cli_path`, or `local_web_root` when that is empty). In a hook, put global WP-CLI flags before the command, `wp --path="$UMS_WP_PATH" plugin activate query-monitor`: hosts that set `WP_CLI_STRICT_ARGS_MODE` reject them after it (`unknown --path parameter`).
 
 ```bash
 before_run_hook='docker compose up -d'
